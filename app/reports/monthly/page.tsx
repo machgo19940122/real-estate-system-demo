@@ -119,24 +119,24 @@ export default function MonthlyReportsPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+            <h1 className="text-2xl md:text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
               月次集計
             </h1>
-            <p className="text-gray-600 mt-2">月ごとの売上を区分別に集計します</p>
+            <p className="text-gray-600 mt-2 text-sm md:text-base">月ごとの売上を区分別に集計します</p>
           </div>
         </div>
 
         {/* 年月選択 */}
         <Card className="border-0 shadow-lg">
           <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-gray-500" />
-                <label className="text-sm font-medium text-gray-700">年:</label>
+            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4">
+              <div className="flex items-center gap-2 flex-1">
+                <Calendar className="h-4 w-4 md:h-5 md:w-5 text-gray-500 flex-shrink-0" />
+                <label className="text-xs md:text-sm font-medium text-gray-700 whitespace-nowrap">年:</label>
                 <select
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  className="flex-1 px-2 md:px-3 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                 >
                   {years.map((year) => (
                     <option key={year} value={year}>
@@ -145,12 +145,12 @@ export default function MonthlyReportsPage() {
                   ))}
                 </select>
               </div>
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-gray-700">月:</label>
+              <div className="flex items-center gap-2 flex-1">
+                <label className="text-xs md:text-sm font-medium text-gray-700 whitespace-nowrap">月:</label>
                 <select
                   value={selectedMonth}
                   onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  className="flex-1 px-2 md:px-3 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                 >
                   {months.map((month) => (
                     <option key={month} value={month}>
@@ -161,13 +161,13 @@ export default function MonthlyReportsPage() {
               </div>
               <Link
                 href={`/reports/monthly/${selectedYear}/${selectedMonth}`}
-                className="ml-auto"
+                className="w-full md:w-auto md:ml-auto"
               >
                 <Button
                   size="lg"
-                  className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 font-semibold px-6 py-3"
+                  className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 font-semibold px-4 md:px-6 py-2 md:py-3 text-sm md:text-base"
                 >
-                  <FileText className="h-5 w-5 mr-2" />
+                  <FileText className="h-4 w-4 md:h-5 md:w-5 mr-2" />
                   詳細を見る
                 </Button>
               </Link>
@@ -178,15 +178,15 @@ export default function MonthlyReportsPage() {
         {/* 合計金額 */}
         <Card className="border-0 shadow-lg bg-gradient-to-br from-indigo-50 to-white">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-700">
+            <CardTitle className="text-xs md:text-sm font-medium text-gray-700">
               {selectedYear}年{selectedMonth}月 合計売上
             </CardTitle>
-            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center shadow-md">
-              <TrendingUp className="h-5 w-5 text-white" />
+            <div className="h-8 w-8 md:h-10 md:w-10 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center shadow-md">
+              <TrendingUp className="h-4 w-4 md:h-5 md:w-5 text-white" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold text-gray-900">
+            <div className="text-2xl md:text-4xl font-bold text-gray-900">
               {formatCurrency(totalAmount)}
             </div>
             <p className="text-xs text-gray-500 mt-2">
@@ -196,7 +196,7 @@ export default function MonthlyReportsPage() {
         </Card>
 
         {/* 区分別集計カード */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:gap-6 grid-cols-2 lg:grid-cols-4">
           {(["新築", "リフォーム", "土地", "仲介料"] as RevenueCategory[]).map(
             (category) => (
               <Card
@@ -204,17 +204,17 @@ export default function MonthlyReportsPage() {
                 className={`border-0 shadow-lg bg-gradient-to-br ${categoryBgColors[category]}`}
               >
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-700">
+                  <CardTitle className="text-xs md:text-sm font-medium text-gray-700">
                     {categoryLabels[category]}
                   </CardTitle>
                   <div
-                    className={`h-10 w-10 rounded-lg bg-gradient-to-br ${categoryColors[category]} flex items-center justify-center shadow-md`}
+                    className={`h-8 w-8 md:h-10 md:w-10 rounded-lg bg-gradient-to-br ${categoryColors[category]} flex items-center justify-center shadow-md`}
                   >
-                    <TrendingUp className="h-5 w-5 text-white" />
+                    <TrendingUp className="h-4 w-4 md:h-5 md:w-5 text-white" />
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-gray-900">
+                  <div className="text-xl md:text-2xl font-bold text-gray-900">
                     {formatCurrency(categoryTotals.totals[category])}
                   </div>
                   <p className="text-xs text-gray-500 mt-2">

@@ -178,7 +178,7 @@ export function MonthlyReportDetailClient({
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-4">
             <Link href="/reports/monthly">
               <Button variant="outline" size="sm">
@@ -187,20 +187,20 @@ export function MonthlyReportDetailClient({
               </Button>
             </Link>
             <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+              <h1 className="text-2xl md:text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
                 {year}年{month}月 月次集計
               </h1>
-              <p className="text-gray-600 mt-1">請求先別の詳細集計</p>
+              <p className="text-gray-600 mt-1 text-sm md:text-base">請求先別の詳細集計</p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             {!isClosed && (
-              <Button onClick={handleClose} variant="outline">
+              <Button onClick={handleClose} variant="outline" size="sm" className="flex-1 md:flex-none">
                 <Lock className="h-4 w-4 mr-2" />
                 締め処理
               </Button>
             )}
-            <Button onClick={handleExportCSV}>
+            <Button onClick={handleExportCSV} size="sm" className="flex-1 md:flex-none">
               <Download className="h-4 w-4 mr-2" />
               CSV出力
             </Button>
@@ -226,18 +226,18 @@ export function MonthlyReportDetailClient({
         {/* 合計サマリー */}
         <Card className="border-0 shadow-lg bg-gradient-to-br from-indigo-50 to-white">
           <CardHeader className="border-b">
-            <CardTitle>合計売上</CardTitle>
+            <CardTitle className="text-lg md:text-xl">合計売上</CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
-            <div className="text-4xl font-bold text-gray-900 mb-4">
+            <div className="text-2xl md:text-4xl font-bold text-gray-900 mb-4">
               {formatCurrency(totalAmount)}
             </div>
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {(["新築", "リフォーム", "土地", "仲介料"] as RevenueCategory[]).map(
                 (category) => (
                   <div key={category} className="text-center">
-                    <p className="text-sm text-gray-600 mb-1">{categoryLabels[category]}</p>
-                    <p className="text-xl font-bold text-gray-900">
+                    <p className="text-xs md:text-sm text-gray-600 mb-1">{categoryLabels[category]}</p>
+                    <p className="text-lg md:text-xl font-bold text-gray-900">
                       {formatCurrency(categoryTotals[category])}
                     </p>
                   </div>
@@ -250,17 +250,17 @@ export function MonthlyReportDetailClient({
         {/* 顧客別集計サマリー */}
         <Card className="border-0 shadow-lg">
           <CardHeader className="border-b">
-            <CardTitle>顧客別集計</CardTitle>
+            <CardTitle className="text-lg md:text-xl">顧客別集計</CardTitle>
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="p-0 overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="bg-gray-50/50">
-                  <TableHead className="font-semibold">顧客名</TableHead>
-                  <TableHead className="font-semibold">請求件数</TableHead>
-                  <TableHead className="font-semibold">請求金額</TableHead>
-                  <TableHead className="font-semibold">入金額（{year}年{month}月）</TableHead>
-                  <TableHead className="font-semibold">残額</TableHead>
+                  <TableHead className="font-semibold text-xs md:text-sm whitespace-nowrap">顧客名</TableHead>
+                  <TableHead className="font-semibold text-xs md:text-sm whitespace-nowrap">請求件数</TableHead>
+                  <TableHead className="font-semibold text-xs md:text-sm whitespace-nowrap">請求金額</TableHead>
+                  <TableHead className="font-semibold text-xs md:text-sm whitespace-nowrap">入金額（{year}年{month}月）</TableHead>
+                  <TableHead className="font-semibold text-xs md:text-sm whitespace-nowrap">残額</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -299,7 +299,7 @@ export function MonthlyReportDetailClient({
                         key={customerId}
                         className="hover:bg-gray-50/50 transition-colors"
                       >
-                        <TableCell className="font-medium">
+                        <TableCell className="font-medium text-xs md:text-sm whitespace-nowrap">
                           <Link
                             href={`/customers/${customerId}`}
                             className="text-blue-600 hover:text-blue-700 hover:underline"
@@ -307,12 +307,12 @@ export function MonthlyReportDetailClient({
                             {customer.name}
                           </Link>
                         </TableCell>
-                        <TableCell>{customerInvoices.length}件</TableCell>
-                        <TableCell>{formatCurrency(customerInvoiceTotal)}</TableCell>
-                        <TableCell className="font-semibold text-green-600">
+                        <TableCell className="text-xs md:text-sm whitespace-nowrap">{customerInvoices.length}件</TableCell>
+                        <TableCell className="text-xs md:text-sm whitespace-nowrap">{formatCurrency(customerInvoiceTotal)}</TableCell>
+                        <TableCell className="font-semibold text-green-600 text-xs md:text-sm whitespace-nowrap">
                           {formatCurrency(customerPaidTotal)}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="text-xs md:text-sm whitespace-nowrap">
                           {customerRemaining > 0 ? (
                             <span className="font-semibold text-orange-600">
                               {formatCurrency(customerRemaining)}

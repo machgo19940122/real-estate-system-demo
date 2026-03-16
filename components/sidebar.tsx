@@ -12,6 +12,8 @@ import {
   Receipt,
   UserCircle,
   X,
+  CreditCard,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +24,8 @@ const navigation = [
   { name: "案件一覧", href: "/projects", icon: FolderKanban },
   { name: "見積一覧", href: "/estimates", icon: FileText },
   { name: "請求一覧", href: "/invoices", icon: Receipt },
+  { name: "入金管理", href: "/payments", icon: CreditCard },
+  { name: "月次集計", href: "/reports/monthly", icon: BarChart3 },
   { name: "担当者一覧", href: "/staff", icon: UserCircle },
 ];
 

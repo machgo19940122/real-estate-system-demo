@@ -50,7 +50,7 @@ export interface EstimateItem {
   amount: number;
 }
 
-export type InvoiceStatus = "未請求" | "未入金" | "入金済";
+export type InvoiceStatus = "未請求" | "未入金" | "一部入金" | "入金済";
 
 export interface Invoice {
   id: number;
@@ -60,6 +60,35 @@ export interface Invoice {
   due_date: string;
   status: InvoiceStatus;
   created_at: string;
+}
+
+// 入金レコード（1つの請求に対して複数可能）
+export type PaymentMethod = "振込" | "現金" | "小切手" | "その他";
+
+export interface Payment {
+  id: number;
+  invoice_id: number;
+  amount: number;
+  payment_date: string;
+  payment_method: PaymentMethod;
+  note?: string;
+  created_at: string;
+}
+
+// 売上区分
+export type RevenueCategory = "新築" | "リフォーム" | "土地" | "仲介料";
+
+// 月次集計
+export interface MonthlySummary {
+  id: number;
+  year: number;
+  month: number; // 1-12
+  category: RevenueCategory;
+  amount: number;
+  invoice_count: number;
+  created_at: string;
+  closed_at?: string;
+  is_closed: boolean;
 }
 
 export type StaffRole = "管理者" | "営業" | "事務" | "現場監督";
@@ -196,6 +225,50 @@ export const projects: Project[] = [
     price: 800000,
     created_at: "2025-03-15",
   },
+  {
+    id: 6,
+    name: "目黒区新築マンション",
+    type: "新築売買",
+    status: "契約済",
+    customer_id: 1,
+    property_id: 1,
+    staff_id: 2,
+    price: 45000000,
+    created_at: "2026-02-10",
+  },
+  {
+    id: 7,
+    name: "品川区リノベーション",
+    type: "リフォーム",
+    status: "完了",
+    customer_id: 2,
+    property_id: 2,
+    staff_id: 5,
+    price: 1200000,
+    created_at: "2026-02-20",
+  },
+  {
+    id: 8,
+    name: "千代田区土地売買",
+    type: "中古売買",
+    status: "契約済",
+    customer_id: 3,
+    property_id: 3,
+    staff_id: 3,
+    price: 95000000,
+    created_at: "2026-02-25",
+  },
+  {
+    id: 9,
+    name: "中央区マンション仲介",
+    type: "仲介",
+    status: "完了",
+    customer_id: 4,
+    property_id: 4,
+    staff_id: 3,
+    price: 18000000,
+    created_at: "2026-03-01",
+  },
 ];
 
 export const estimates: Estimate[] = [
@@ -330,6 +403,42 @@ export const invoices: Invoice[] = [
     status: "未請求",
     created_at: "2025-03-16",
   },
+  {
+    id: 6,
+    project_id: 6,
+    invoice_number: "INV-006",
+    amount: 49500000,
+    due_date: "2026-04-10",
+    status: "未入金",
+    created_at: "2026-02-15",
+  },
+  {
+    id: 7,
+    project_id: 7,
+    invoice_number: "INV-007",
+    amount: 1320000,
+    due_date: "2026-04-15",
+    status: "未入金",
+    created_at: "2026-02-25",
+  },
+  {
+    id: 8,
+    project_id: 8,
+    invoice_number: "INV-008",
+    amount: 104500000,
+    due_date: "2026-04-20",
+    status: "未入金",
+    created_at: "2026-03-01",
+  },
+  {
+    id: 9,
+    project_id: 9,
+    invoice_number: "INV-009",
+    amount: 19800000,
+    due_date: "2026-04-25",
+    status: "未入金",
+    created_at: "2026-03-05",
+  },
 ];
 
 // ヘルパー関数
@@ -400,4 +509,173 @@ export function getStaffById(id: number): Staff | undefined {
 export function getEstimateById(id: number): Estimate | undefined {
   return estimates.find((e) => e.id === id);
 }
+
+export function getInvoiceById(id: number): Invoice | undefined {
+  return invoices.find((i) => i.id === id);
+}
+
+// 案件タイプから売上区分へのマッピング
+export function getRevenueCategory(projectType: ProjectType): RevenueCategory {
+  switch (projectType) {
+    case "新築売買":
+      return "新築";
+    case "中古売買":
+      return "土地";
+    case "仲介":
+      return "仲介料";
+    case "リフォーム":
+      return "リフォーム";
+    default:
+      return "リフォーム";
+  }
+}
+
+// 入金モックデータ
+export const payments: Payment[] = [
+  {
+    id: 1,
+    invoice_id: 4,
+    amount: 385000000,
+    payment_date: "2025-03-15",
+    payment_method: "振込",
+    note: "全額入金",
+    created_at: "2025-03-15",
+  },
+  {
+    id: 2,
+    invoice_id: 1,
+    amount: 300000,
+    payment_date: "2025-03-20",
+    payment_method: "振込",
+    note: "一部入金",
+    created_at: "2025-03-20",
+  },
+  {
+    id: 3,
+    invoice_id: 1,
+    amount: 250000,
+    payment_date: "2025-03-25",
+    payment_method: "振込",
+    note: "残額入金",
+    created_at: "2025-03-25",
+  },
+  {
+    id: 4,
+    invoice_id: 6,
+    amount: 49500000,
+    payment_date: "2026-03-10",
+    payment_method: "振込",
+    note: "全額入金",
+    created_at: "2026-03-10",
+  },
+  {
+    id: 5,
+    invoice_id: 7,
+    amount: 800000,
+    payment_date: "2026-03-15",
+    payment_method: "振込",
+    note: "一部入金",
+    created_at: "2026-03-15",
+  },
+  {
+    id: 6,
+    invoice_id: 7,
+    amount: 520000,
+    payment_date: "2026-03-20",
+    payment_method: "振込",
+    note: "残額入金",
+    created_at: "2026-03-20",
+  },
+  {
+    id: 7,
+    invoice_id: 8,
+    amount: 104500000,
+    payment_date: "2026-03-18",
+    payment_method: "振込",
+    note: "全額入金",
+    created_at: "2026-03-18",
+  },
+  {
+    id: 8,
+    invoice_id: 9,
+    amount: 19800000,
+    payment_date: "2026-03-25",
+    payment_method: "振込",
+    note: "全額入金",
+    created_at: "2026-03-25",
+  },
+];
+
+// 入金取得ヘルパー関数
+export function getPaymentsByInvoiceId(invoiceId: number): Payment[] {
+  return payments.filter((p) => p.invoice_id === invoiceId);
+}
+
+export function getPaymentById(id: number): Payment | undefined {
+  return payments.find((p) => p.id === id);
+}
+
+// 請求の合計入金額を計算
+export function getTotalPaidAmount(invoiceId: number): number {
+  return getPaymentsByInvoiceId(invoiceId).reduce((sum, p) => sum + p.amount, 0);
+}
+
+// 請求のステータスを計算（入金額から自動判定）
+export function calculateInvoiceStatus(invoice: Invoice): InvoiceStatus {
+  const totalPaid = getTotalPaidAmount(invoice.id);
+  if (totalPaid === 0) {
+    return invoice.status === "未請求" ? "未請求" : "未入金";
+  } else if (totalPaid >= invoice.amount) {
+    return "入金済";
+  } else {
+    return "一部入金";
+  }
+}
+
+// 月次集計モックデータ
+export const monthlySummaries: MonthlySummary[] = [
+  {
+    id: 1,
+    year: 2025,
+    month: 3,
+    category: "新築",
+    amount: 198000000,
+    invoice_count: 1,
+    created_at: "2025-03-31",
+    closed_at: "2025-03-31",
+    is_closed: true,
+  },
+  {
+    id: 2,
+    year: 2025,
+    month: 3,
+    category: "リフォーム",
+    amount: 550000,
+    invoice_count: 1,
+    created_at: "2025-03-31",
+    closed_at: "2025-03-31",
+    is_closed: true,
+  },
+  {
+    id: 3,
+    year: 2025,
+    month: 3,
+    category: "土地",
+    amount: 385000000,
+    invoice_count: 1,
+    created_at: "2025-03-31",
+    closed_at: "2025-03-31",
+    is_closed: true,
+  },
+  {
+    id: 4,
+    year: 2025,
+    month: 3,
+    category: "仲介料",
+    amount: 0,
+    invoice_count: 0,
+    created_at: "2025-03-31",
+    is_closed: false,
+  },
+];
 

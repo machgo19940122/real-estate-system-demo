@@ -1,11 +1,19 @@
 import { AppLayout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { invoices, getProjectById } from "@/src/data/mock";
+import {
+  invoices,
+  getProjectById,
+  getPaymentsByInvoiceId,
+  getTotalPaidAmount,
+  calculateInvoiceStatus,
+} from "@/src/data/mock";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { ArrowLeft, Receipt, Calendar, DollarSign, AlertCircle } from "lucide-react";
+import { ArrowLeft, Receipt, Calendar, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { PaymentClient } from "./payment-client";
+import { ReceiptClient } from "./receipt-client";
 
 export default async function InvoiceDetailPage({
   params,
@@ -20,8 +28,12 @@ export default async function InvoiceDetailPage({
   }
 
   const project = getProjectById(invoice.project_id);
+  const payments = getPaymentsByInvoiceId(invoice.id);
+  const totalPaid = getTotalPaidAmount(invoice.id);
+  const currentStatus = calculateInvoiceStatus(invoice);
   const isOverdue =
-    invoice.status === "未入金" && new Date(invoice.due_date) < new Date();
+    (currentStatus === "未入金" || currentStatus === "一部入金") &&
+    new Date(invoice.due_date) < new Date();
 
   return (
     <AppLayout>
@@ -61,10 +73,17 @@ export default async function InvoiceDetailPage({
           {/* 請求詳細 */}
           <Card className="border-0 shadow-lg">
             <CardHeader className="border-b">
-              <CardTitle className="flex items-center gap-2">
-                <Receipt className="h-5 w-5 text-blue-600" />
-                請求情報
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Receipt className="h-5 w-5 text-blue-600" />
+                  請求情報
+                </CardTitle>
+                <ReceiptClient
+                  invoiceId={invoice.id}
+                  invoiceAmount={invoice.amount}
+                  totalPaid={totalPaid}
+                />
+              </div>
             </CardHeader>
             <CardContent className="pt-6 space-y-4">
               <div>
@@ -90,17 +109,31 @@ export default async function InvoiceDetailPage({
                 <p className="text-sm text-gray-500 mb-1">ステータス</p>
                 <span
                   className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${
-                    invoice.status === "入金済"
+                    currentStatus === "入金済"
                       ? "bg-green-100 text-green-800"
-                      : invoice.status === "未入金"
+                      : currentStatus === "一部入金"
+                      ? "bg-blue-100 text-blue-800"
+                      : currentStatus === "未入金"
                       ? isOverdue
                         ? "bg-red-100 text-red-800"
                         : "bg-yellow-100 text-yellow-800"
                       : "bg-gray-100 text-gray-800"
                   }`}
                 >
-                  {invoice.status}
+                  {currentStatus}
                 </span>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 mb-1">入金済み</p>
+                <p className="font-semibold text-lg text-green-600">
+                  {formatCurrency(totalPaid)}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 mb-1">残額</p>
+                <p className="font-semibold text-lg text-orange-600">
+                  {formatCurrency(invoice.amount - totalPaid)}
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -139,7 +172,7 @@ export default async function InvoiceDetailPage({
               </div>
               <div>
                 <p className="text-sm text-gray-500 mb-1">残り日数</p>
-                {invoice.status === "入金済" ? (
+                {currentStatus === "入金済" ? (
                   <p className="font-medium text-green-600">入金済み</p>
                 ) : (
                   <p
@@ -163,6 +196,13 @@ export default async function InvoiceDetailPage({
             </CardContent>
           </Card>
         </div>
+
+        {/* 入金管理 */}
+        <PaymentClient
+          invoiceId={invoice.id}
+          invoiceAmount={invoice.amount}
+          initialPayments={payments}
+        />
       </div>
     </AppLayout>
   );

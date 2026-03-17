@@ -8,6 +8,7 @@ import {
   getStaffById,
   estimates,
   invoices,
+  calculateInvoiceStatus,
 } from "@/src/data/mock";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import {
@@ -224,14 +225,12 @@ export default async function ProjectDetailPage({
                             <p className="font-semibold">{formatCurrency(invoice.amount)}</p>
                             <span
                               className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium mt-1 ${
-                                invoice.status === "入金済"
-                                  ? "bg-green-100 text-green-800"
-                                  : invoice.status === "未入金"
+                                calculateInvoiceStatus(invoice) === "有"
                                   ? "bg-yellow-100 text-yellow-800"
                                   : "bg-gray-100 text-gray-800"
                               }`}
                             >
-                              {invoice.status}
+                              {calculateInvoiceStatus(invoice)}
                             </span>
                           </div>
                         </div>

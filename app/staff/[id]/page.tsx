@@ -1,9 +1,26 @@
 import { AppLayout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { staff, projects } from "@/src/data/mock";
-import { formatDate } from "@/lib/utils";
-import { ArrowLeft, Mail, Phone, User, Calendar, Briefcase } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  staff,
+  estimates,
+  invoices,
+  projects,
+  getPropertyById,
+  getCustomerById,
+  getInvoiceStaffId,
+  calculateInvoiceStatus,
+} from "@/src/data/mock";
+import { formatDate, formatCurrency } from "@/lib/utils";
+import { ArrowLeft, Mail, Phone, User, Calendar, Briefcase, FileText, Receipt } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -13,14 +30,15 @@ export default async function StaffDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const member = staff.find((s) => s.id === parseInt(id));
+  const staffId = parseInt(id);
+  const member = staff.find((s) => s.id === staffId);
 
   if (!member) {
     notFound();
   }
 
-  // 担当者が関連する案件（ダミーで最初の2件を表示）
-  const relatedProjects = projects.slice(0, 2);
+  const staffEstimates = estimates.filter((e) => e.staff_id === staffId);
+  const staffInvoices = invoices.filter((inv) => getInvoiceStaffId(inv) === staffId);
 
   return (
     <AppLayout>
@@ -102,48 +120,150 @@ export default async function StaffDetailPage({
             </CardContent>
           </Card>
 
-          {/* 関連案件 */}
-          <Card className="border-0 shadow-lg">
-            <CardHeader className="border-b">
-              <CardTitle>担当案件 ({relatedProjects.length}件)</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6">
-              {relatedProjects.length > 0 ? (
-                <div className="space-y-3">
-                  {relatedProjects.map((project) => (
-                    <Link
-                      key={project.id}
-                      href={`/projects/${project.id}`}
-                      className="block p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 transition-all"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium text-gray-900">{project.name}</p>
-                          <p className="text-sm text-gray-500 mt-1">{project.type}</p>
-                        </div>
-                        <span
-                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                            project.status === "完了"
-                              ? "bg-green-100 text-green-800"
-                              : project.status === "契約済"
-                              ? "bg-blue-100 text-blue-800"
-                              : project.status === "工事中"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : "bg-gray-100 text-gray-800"
-                          }`}
-                        >
-                          {project.status}
-                        </span>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-500 text-center py-4">担当案件がありません</p>
-              )}
-            </CardContent>
-          </Card>
         </div>
+
+        {/* この担当者の見積 */}
+        <Card className="border-0 shadow-lg">
+          <CardHeader className="border-b flex flex-row items-center gap-2">
+            <FileText className="h-5 w-5 text-blue-600" />
+            <CardTitle>この担当者の見積 ({staffEstimates.length}件)</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6">
+            {staffEstimates.length > 0 ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-gray-50/60">
+                      <TableHead className="text-xs md:text-sm font-semibold">見積番号</TableHead>
+                      <TableHead className="text-xs md:text-sm font-semibold">顧客</TableHead>
+                      <TableHead className="text-xs md:text-sm font-semibold">物件</TableHead>
+                      <TableHead className="text-xs md:text-sm font-semibold text-right">合計金額</TableHead>
+                      <TableHead className="text-xs md:text-sm font-semibold">作成日</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {staffEstimates.map((estimate) => {
+                      const project = projects.find((p) => p.id === estimate.project_id);
+                      const customer = project ? getCustomerById(project.customer_id) : undefined;
+                      const property = project ? getPropertyById(project.property_id) : undefined;
+                      return (
+                        <TableRow key={estimate.id} className="hover:bg-gray-50/60">
+                          <TableCell className="text-xs md:text-sm font-medium">
+                            <Link
+                              href={`/estimates/${estimate.id}`}
+                              className="text-blue-600 hover:text-blue-700 hover:underline"
+                            >
+                              {estimate.estimate_number}
+                            </Link>
+                          </TableCell>
+                          <TableCell className="text-xs md:text-sm">
+                            {customer ? (
+                              <Link href={`/customers/${customer.id}`} className="hover:underline">
+                                {customer.name}
+                              </Link>
+                            ) : "-"}
+                          </TableCell>
+                          <TableCell className="text-xs md:text-sm">
+                            {property ? (
+                              <Link href={`/properties/${property.id}`} className="hover:underline">
+                                {property.name}
+                              </Link>
+                            ) : "-"}
+                          </TableCell>
+                          <TableCell className="text-xs md:text-sm text-right font-semibold">
+                            {formatCurrency(estimate.total)}
+                          </TableCell>
+                          <TableCell className="text-xs md:text-sm">
+                            {formatDate(estimate.created_at)}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <p className="text-gray-500 text-center py-4">この担当者の見積はまだありません</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* この担当者の請求 */}
+        <Card className="border-0 shadow-lg">
+          <CardHeader className="border-b flex flex-row items-center gap-2">
+            <Receipt className="h-5 w-5 text-blue-600" />
+            <CardTitle>この担当者の請求 ({staffInvoices.length}件)</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6">
+            {staffInvoices.length > 0 ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-gray-50/60">
+                      <TableHead className="text-xs md:text-sm font-semibold">請求番号</TableHead>
+                      <TableHead className="text-xs md:text-sm font-semibold">顧客</TableHead>
+                      <TableHead className="text-xs md:text-sm font-semibold">物件</TableHead>
+                      <TableHead className="text-xs md:text-sm font-semibold text-right">請求金額</TableHead>
+                      <TableHead className="text-xs md:text-sm font-semibold">支払期限</TableHead>
+                      <TableHead className="text-xs md:text-sm font-semibold">入金ステータス</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {staffInvoices.map((invoice) => {
+                      const project = projects.find((p) => p.id === (invoice as any).project_id);
+                      const customer = project ? getCustomerById(project.customer_id) : undefined;
+                      const property = project ? getPropertyById(project.property_id) : undefined;
+                      const status = calculateInvoiceStatus(invoice);
+                      const isOverdue =
+                        status === "無し" && new Date(invoice.due_date) < new Date();
+                      return (
+                        <TableRow key={invoice.id} className="hover:bg-gray-50/60">
+                          <TableCell className="text-xs md:text-sm font-medium">
+                            <Link
+                              href={`/invoices/${invoice.id}`}
+                              className="text-blue-600 hover:text-blue-700 hover:underline"
+                            >
+                              {invoice.invoice_number}
+                            </Link>
+                          </TableCell>
+                          <TableCell className="text-xs md:text-sm">
+                            {customer ? (
+                              <Link href={`/customers/${customer.id}`} className="hover:underline">
+                                {customer.name}
+                              </Link>
+                            ) : "-"}
+                          </TableCell>
+                          <TableCell className="text-xs md:text-sm">
+                            {property ? (
+                              <Link href={`/properties/${property.id}`} className="hover:underline">
+                                {property.name}
+                              </Link>
+                            ) : "-"}
+                          </TableCell>
+                          <TableCell className="text-xs md:text-sm text-right font-semibold">
+                            {formatCurrency(invoice.amount)}
+                          </TableCell>
+                          <TableCell className="text-xs md:text-sm">
+                            <span className={isOverdue ? "text-red-600 font-medium" : ""}>
+                              {formatDate(invoice.due_date)}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-xs md:text-sm">
+                            <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium bg-yellow-100 text-yellow-800">
+                              {status}
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <p className="text-gray-500 text-center py-4">この担当者の請求はまだありません</p>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </AppLayout>
   );

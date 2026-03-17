@@ -16,6 +16,7 @@ import {
   getInvoiceById,
   getProjectById,
   getCustomerById,
+  calculateInvoiceStatus,
 } from "@/src/data/mock";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Search, X } from "lucide-react";
@@ -23,22 +24,36 @@ import Link from "next/link";
 
 export default function PaymentsPage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "unpaid" | "paid">("all");
 
   const filteredPayments = useMemo(() => {
-    if (!searchQuery.trim()) return payments;
-    const query = searchQuery.toLowerCase();
-    return payments.filter((payment) => {
+    const bySearch = !searchQuery.trim()
+      ? payments
+      : payments.filter((payment) => {
+          const invoice = getInvoiceById(payment.invoice_id);
+          const project = invoice ? getProjectById(invoice.project_id) : undefined;
+          const customer = project ? getCustomerById(project.customer_id) : undefined;
+          const query = searchQuery.toLowerCase();
+          return (
+            invoice?.invoice_number.toLowerCase().includes(query) ||
+            project?.name.toLowerCase().includes(query) ||
+            customer?.name.toLowerCase().includes(query) ||
+            payment.payment_method.includes(query)
+          );
+        });
+
+    if (statusFilter === "all") {
+      return bySearch;
+    }
+
+    return bySearch.filter((payment) => {
       const invoice = getInvoiceById(payment.invoice_id);
-      const project = invoice ? getProjectById(invoice.project_id) : undefined;
-      const customer = project ? getCustomerById(project.customer_id) : undefined;
-      return (
-        invoice?.invoice_number.toLowerCase().includes(query) ||
-        project?.name.toLowerCase().includes(query) ||
-        customer?.name.toLowerCase().includes(query) ||
-        payment.payment_method.includes(query)
-      );
+      if (!invoice) return false;
+      const status = calculateInvoiceStatus(invoice);
+      const isPaid = status === "有";
+      return statusFilter === "paid" ? isPaid : !isPaid;
     });
-  }, [searchQuery]);
+  }, [searchQuery, statusFilter]);
 
   return (
     <AppLayout>
@@ -52,28 +67,46 @@ export default function PaymentsPage() {
           </div>
         </div>
 
-        {/* 検索バー */}
+        {/* 検索バー＋入金ステータスフィルタ */}
         <Card className="border-0 shadow-lg">
           <CardContent className="pt-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="請求番号、案件名、顧客名、入金方法で検索..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all shadow-sm"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="請求番号、案件名、顧客名、入金方法で検索..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all shadow-sm"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-2 md:w-64">
+                <span className="text-sm text-gray-600 whitespace-nowrap">
+                  入金ステータス
+                </span>
+                <select
+                  value={statusFilter}
+                  onChange={(e) =>
+                    setStatusFilter(e.target.value as "all" | "unpaid" | "paid")
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
                 >
-                  <X className="h-5 w-5" />
-                </button>
-              )}
+                  <option value="all">すべて</option>
+                  <option value="unpaid">未入金</option>
+                  <option value="paid">入金済</option>
+                </select>
+              </div>
             </div>
-            {searchQuery && (
+            {(searchQuery || statusFilter !== "all") && (
               <p className="text-sm text-gray-500 mt-2">
                 {filteredPayments.length}件の結果が見つかりました
               </p>

@@ -75,6 +75,21 @@ export default function NewPropertyPage() {
                     placeholder="田中太郎"
                   />
                 </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <label htmlFor="category" className="text-sm font-medium text-gray-700">
+                    区分 <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="category"
+                    required
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white"
+                  >
+                    <option value="">選択してください</option>
+                    <option value="新築">新築</option>
+                    <option value="土地">土地</option>
+                  </select>
+                </div>
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t">

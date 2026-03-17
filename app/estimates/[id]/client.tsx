@@ -1,19 +1,50 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
+import { Download, Receipt } from "lucide-react";
+import Link from "next/link";
 
-export function EstimateDetailClient() {
+type EstimateDetailClientProps = {
+  estimateId: number;
+  propertyId?: number;
+  customerId?: number;
+  amount?: number;
+  revenueCategory?: string;
+};
+
+export function EstimateDetailClient({
+  estimateId,
+  propertyId,
+  customerId,
+  amount,
+  revenueCategory,
+}: EstimateDetailClientProps) {
+  const params = new URLSearchParams();
+  params.set("estimateId", String(estimateId));
+  if (propertyId != null) params.set("propertyId", String(propertyId));
+  if (customerId != null) params.set("customerId", String(customerId));
+  if (amount != null) params.set("amount", String(amount));
+  if (revenueCategory) params.set("revenueCategory", revenueCategory);
+  const invoiceNewHref = `/invoices/new?${params.toString()}`;
+
   return (
-    <Button
-      onClick={() => {
-        alert("PDF出力機能（ダミー）");
-      }}
-      className="bg-blue-600 hover:bg-blue-700"
-    >
-      <Download className="h-4 w-4 mr-2" />
-      PDF出力
-    </Button>
+    <>
+      <Link href={invoiceNewHref}>
+        <Button variant="default" className="bg-blue-600 hover:bg-blue-700">
+          <Receipt className="h-4 w-4 mr-2" />
+          見積書から請求書を作成
+        </Button>
+      </Link>
+      <Button
+        variant="outline"
+        onClick={() => {
+          alert("PDF出力機能（ダミー）");
+        }}
+      >
+        <Download className="h-4 w-4 mr-2" />
+        見積書PDF
+      </Button>
+    </>
   );
 }
 

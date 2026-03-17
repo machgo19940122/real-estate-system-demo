@@ -1,9 +1,15 @@
 import { AppLayout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { estimates, getProjectById, getStaffById } from "@/src/data/mock";
+import {
+  estimates,
+  projects,
+  getCustomerById,
+  getPropertyById,
+  getStaffById,
+} from "@/src/data/mock";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { ArrowLeft, FileText, UserCircle } from "lucide-react";
+import { ArrowLeft, FileText } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { EstimateDetailClient } from "./client";
@@ -20,13 +26,15 @@ export default async function EstimateDetailPage({
     notFound();
   }
 
-  const project = getProjectById(estimate.project_id);
+  const project = projects.find((p) => p.id === (estimate as any).project_id);
+  const customer = project ? getCustomerById(project.customer_id) : undefined;
+  const property = project ? getPropertyById(project.property_id) : undefined;
   const staff = estimate.staff_id ? getStaffById(estimate.staff_id) : undefined;
 
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link href="/estimates">
               <Button variant="outline" size="sm">
@@ -41,12 +49,20 @@ export default async function EstimateDetailPage({
               <p className="text-gray-600 mt-1">見積詳細</p>
             </div>
           </div>
-          <EstimateDetailClient />
+          <div className="flex items-center gap-2">
+            <EstimateDetailClient
+              estimateId={estimate.id}
+              propertyId={property?.id}
+              customerId={customer?.id}
+              amount={estimate.total}
+              revenueCategory={estimate.revenue_category}
+            />
+          </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid gap-6">
           {/* 見積詳細 */}
-          <Card className="border-0 shadow-lg md:col-span-2">
+          <Card className="border-0 shadow-lg">
             <CardHeader className="border-b">
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5 text-blue-600" />
@@ -61,13 +77,30 @@ export default async function EstimateDetailPage({
                     <p className="font-semibold">{estimate.estimate_number}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500">案件名</p>
-                    <Link
-                      href={`/projects/${project?.id}`}
-                      className="font-semibold text-blue-600 hover:text-blue-700 hover:underline"
-                    >
-                      {project?.name || "-"}
-                    </Link>
+                    <p className="text-sm text-gray-500">顧客</p>
+                    {customer ? (
+                      <Link
+                        href={`/customers/${customer.id}`}
+                        className="font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+                      >
+                        {customer.name}
+                      </Link>
+                    ) : (
+                      <p className="font-medium text-gray-500">-</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">物件</p>
+                    {property ? (
+                      <Link
+                        href={`/properties/${property.id}`}
+                        className="font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+                      >
+                        {property.name}
+                      </Link>
+                    ) : (
+                      <p className="font-medium text-gray-500">-</p>
+                    )}
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">担当者</p>
@@ -81,6 +114,12 @@ export default async function EstimateDetailPage({
                     ) : (
                       <p className="font-medium text-gray-500">-</p>
                     )}
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">区分</p>
+                    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-sm font-medium bg-blue-50 text-blue-800">
+                      {estimate.revenue_category ?? "-"}
+                    </span>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">作成日</p>
@@ -144,51 +183,6 @@ export default async function EstimateDetailPage({
                     </div>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 情報カード */}
-          <Card className="border-0 shadow-lg">
-            <CardHeader className="border-b">
-              <CardTitle>情報</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6 space-y-4">
-              <div>
-                <p className="text-sm text-gray-500 mb-1">見積番号</p>
-                <p className="font-semibold">{estimate.estimate_number}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 mb-1">案件</p>
-                <Link
-                  href={`/projects/${project?.id}`}
-                  className="font-medium text-blue-600 hover:text-blue-700 hover:underline"
-                >
-                  {project?.name || "-"}
-                </Link>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 mb-1">担当者</p>
-                {staff ? (
-                  <Link
-                    href={`/staff/${staff.id}`}
-                    className="font-medium text-blue-600 hover:text-blue-700 hover:underline"
-                  >
-                    {staff.name}
-                  </Link>
-                ) : (
-                  <p className="font-medium text-gray-500">-</p>
-                )}
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 mb-1">作成日</p>
-                <p className="font-medium">{formatDate(estimate.created_at)}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 mb-1">合計金額</p>
-                <p className="text-2xl font-bold text-blue-600">
-                  {formatCurrency(estimate.total)}
-                </p>
               </div>
             </CardContent>
           </Card>

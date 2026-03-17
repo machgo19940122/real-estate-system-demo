@@ -11,27 +11,52 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { invoices, getProjectById } from "@/src/data/mock";
+import {
+  invoices,
+  projects,
+  getCustomerById,
+  getPropertyById,
+  getInvoiceRevenueCategory,
+  calculateInvoiceStatus,
+  type RevenueCategory,
+} from "@/src/data/mock";
+
+const REVENUE_CATEGORY_OPTIONS: { value: RevenueCategory | ""; label: string }[] = [
+  { value: "", label: "全区分" },
+  { value: "新築", label: "新築" },
+  { value: "リフォーム", label: "リフォーム" },
+  { value: "土地", label: "土地" },
+  { value: "仲介料", label: "仲介料" },
+];
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { Search, X, Plus } from "lucide-react";
+import { FileDown, Search, X, Plus } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 export default function InvoicesPage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<RevenueCategory | "">("");
 
   const filteredInvoices = useMemo(() => {
-    if (!searchQuery.trim()) return invoices;
+    let list = invoices;
+    if (categoryFilter) {
+      list = list.filter((inv) => getInvoiceRevenueCategory(inv) === categoryFilter);
+    }
+    if (!searchQuery.trim()) return list;
     const query = searchQuery.toLowerCase();
-    return invoices.filter((invoice) => {
-      const project = getProjectById(invoice.project_id);
+    return list.filter((invoice) => {
+      const project = projects.find((p) => p.id === (invoice as any).project_id);
+      const customer = project ? getCustomerById(project.customer_id) : undefined;
+      const property = project ? getPropertyById(project.property_id) : undefined;
+      const status = calculateInvoiceStatus(invoice);
       return (
         invoice.invoice_number.toLowerCase().includes(query) ||
-        project?.name.toLowerCase().includes(query) ||
-        invoice.status.includes(query)
+        customer?.name.toLowerCase().includes(query) ||
+        property?.name.toLowerCase().includes(query) ||
+        status.includes(query)
       );
     });
-  }, [searchQuery]);
+  }, [searchQuery, categoryFilter]);
 
   return (
     <AppLayout>
@@ -54,25 +79,38 @@ export default function InvoicesPage() {
         {/* 検索バー */}
         <Card className="border-0 shadow-lg">
           <CardContent className="pt-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="請求番号、案件名、ステータスで検索..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all shadow-sm"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              )}
+            <div className="flex gap-3 items-center">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="請求番号、顧客名、物件名、ステータスで検索..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all shadow-sm"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                )}
+              </div>
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter((e.target.value || "") as RevenueCategory | "")}
+                className="py-3 px-4 min-w-[140px] border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all shadow-sm bg-white"
+              >
+                {REVENUE_CATEGORY_OPTIONS.map((opt) => (
+                  <option key={opt.value || "all"} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
             </div>
-            {searchQuery && (
+            {(searchQuery || categoryFilter) && (
               <p className="text-sm text-gray-500 mt-2">
                 {filteredInvoices.length}件の結果が見つかりました
               </p>
@@ -89,19 +127,25 @@ export default function InvoicesPage() {
               <TableHeader>
                 <TableRow className="bg-gray-50/50">
                   <TableHead className="font-semibold">請求番号</TableHead>
-                  <TableHead className="font-semibold">案件名</TableHead>
+                  <TableHead className="font-semibold">顧客</TableHead>
+                  <TableHead className="font-semibold">物件</TableHead>
+                  <TableHead className="font-semibold">区分</TableHead>
                   <TableHead className="font-semibold">金額</TableHead>
                   <TableHead className="font-semibold">支払期限</TableHead>
-                  <TableHead className="font-semibold">ステータス</TableHead>
+                  <TableHead className="font-semibold">入金ステータス</TableHead>
                   <TableHead className="font-semibold">作成日</TableHead>
+                  <TableHead className="font-semibold">操作</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredInvoices.length > 0 ? (
                   filteredInvoices.map((invoice) => {
-                  const project = getProjectById(invoice.project_id);
+                  const project = projects.find((p) => p.id === (invoice as any).project_id);
+                  const customer = project ? getCustomerById(project.customer_id) : undefined;
+                  const property = project ? getPropertyById(project.property_id) : undefined;
+                  const status = calculateInvoiceStatus(invoice);
                   const isOverdue =
-                    invoice.status === "未入金" &&
+                    status === "無し" &&
                     new Date(invoice.due_date) < new Date();
                   return (
                     <TableRow
@@ -117,13 +161,30 @@ export default function InvoicesPage() {
                         </Link>
                       </TableCell>
                       <TableCell>
-                        <Link
-                          href={`/projects/${project?.id}`}
-                          className="text-gray-700 hover:text-blue-600 hover:underline"
-                        >
-                          {project?.name || "-"}
-                        </Link>
+                        {customer ? (
+                          <Link
+                            href={`/customers/${customer.id}`}
+                            className="text-gray-700 hover:text-blue-600 hover:underline"
+                          >
+                            {customer.name}
+                          </Link>
+                        ) : (
+                          "-"
+                        )}
                       </TableCell>
+                      <TableCell>
+                        {property ? (
+                          <Link
+                            href={`/properties/${property.id}`}
+                            className="text-gray-700 hover:text-blue-600 hover:underline"
+                          >
+                            {property.name}
+                          </Link>
+                        ) : (
+                          "-"
+                        )}
+                      </TableCell>
+                      <TableCell>{getInvoiceRevenueCategory(invoice)}</TableCell>
                       <TableCell className="font-semibold">
                         {formatCurrency(invoice.amount)}
                       </TableCell>
@@ -138,26 +199,30 @@ export default function InvoicesPage() {
                       </TableCell>
                       <TableCell>
                         <span
-                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                            invoice.status === "入金済"
-                              ? "bg-green-100 text-green-800"
-                              : invoice.status === "未入金"
-                              ? isOverdue
-                                ? "bg-red-100 text-red-800"
-                                : "bg-yellow-100 text-yellow-800"
-                              : "bg-gray-100 text-gray-800"
-                          }`}
+                          className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800"
                         >
-                          {invoice.status}
+                          {status}
                         </span>
                       </TableCell>
                       <TableCell>{formatDate(invoice.created_at)}</TableCell>
+                      <TableCell>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            alert(`請求書発行（PDF / ダミー）: ${invoice.invoice_number}`);
+                          }}
+                        >
+                          <FileDown className="h-4 w-4 mr-2" />
+                          PDF出力
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   );
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                       検索結果が見つかりませんでした
                     </TableCell>
                   </TableRow>

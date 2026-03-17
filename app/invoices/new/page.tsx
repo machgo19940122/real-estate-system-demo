@@ -1,16 +1,102 @@
 "use client";
 
+import { useMemo, useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { projects } from "@/src/data/mock";
-import { ArrowLeft } from "lucide-react";
+import { customers, properties, estimates } from "@/src/data/mock";
+import { formatCurrency } from "@/lib/utils";
+import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+
+const TAX_RATE = 0.1; // 消費税率10%
+
+type InvoiceItemForm = {
+  id: number;
+  name: string;
+  quantity: number;
+  unit_price: number;
+};
 
 export default function NewInvoicePage() {
+  const searchParams = useSearchParams();
+  const presetPropertyId = searchParams.get("propertyId") ?? "";
+  const presetCustomerId = searchParams.get("customerId") ?? "";
+  const presetRevenueCategory = searchParams.get("revenueCategory") ?? "";
+  const presetEstimateId = searchParams.get("estimateId");
+
+  const [items, setItems] = useState<InvoiceItemForm[]>([]);
+
+  // 見積から明細を引き継ぎ
+  useEffect(() => {
+    if (!presetEstimateId) return;
+    const estimateIdNum = Number(presetEstimateId);
+    const estimate = estimates.find((e) => e.id === estimateIdNum);
+    if (estimate?.items && estimate.items.length > 0) {
+      setItems(
+        estimate.items.map((item) => ({
+          id: item.id,
+          name: item.name,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+        }))
+      );
+    }
+  }, [presetEstimateId]);
+
+  const { subtotal, tax, total } = useMemo(() => {
+    const sub = items.reduce(
+      (sum, item) => sum + item.quantity * (item.unit_price || 0),
+      0
+    );
+    const taxAmount = Math.floor(sub * TAX_RATE);
+    return {
+      subtotal: sub,
+      tax: taxAmount,
+      total: sub + taxAmount,
+    };
+  }, [items]);
+
+  const handleAddItem = () => {
+    setItems((prev) => [
+      ...prev,
+      {
+        id: prev.length ? prev[prev.length - 1].id + 1 : 1,
+        name: "",
+        quantity: 1,
+        unit_price: 0,
+      },
+    ]);
+  };
+
+  const handleUpdateItem = (
+    id: number,
+    field: keyof InvoiceItemForm,
+    value: string
+  ) => {
+    setItems((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              [field]:
+                field === "quantity" || field === "unit_price"
+                  ? Number(value) || 0
+                  : value,
+            }
+          : item
+      )
+    );
+  };
+
+  const handleRemoveItem = (id: number) => {
+    setItems((prev) => prev.filter((item) => item.id !== id));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    alert("新規請求登録機能（ダミー）");
+    alert("新規請求登録機能（ダミー）\n請求明細行数: " + items.length);
   };
 
   return (
@@ -37,40 +123,70 @@ export default function NewInvoicePage() {
           </CardHeader>
           <CardContent className="pt-6">
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid gap-6 md:grid-cols-2">
-                <div className="space-y-2">
-                  <label htmlFor="project" className="text-sm font-medium text-gray-700">
-                    案件 <span className="text-red-500">*</span>
+              <div className="grid gap-6 md:grid-cols-4">
+                <div className="space-y-2 md:col-span-1">
+                  <label htmlFor="property" className="text-sm font-medium text-gray-700">
+                    物件 <span className="text-red-500">*</span>
                   </label>
                   <select
-                    id="project"
+                    id="property"
+                    name="property"
                     required
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white"
+                    defaultValue={presetPropertyId}
                   >
                     <option value="">選択してください</option>
-                    {projects.map((project) => (
-                      <option key={project.id} value={project.id}>
-                        {project.name}
+                    {properties.map((property) => (
+                      <option key={property.id} value={property.id}>
+                        {property.name}
                       </option>
                     ))}
                   </select>
                 </div>
 
-                <div className="space-y-2">
-                  <label htmlFor="amount" className="text-sm font-medium text-gray-700">
-                    請求金額 <span className="text-red-500">*</span>
+                <div className="space-y-2 md:col-span-1">
+                  <label htmlFor="customer" className="text-sm font-medium text-gray-700">
+                    顧客 <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    id="amount"
-                    type="number"
+                  <select
+                    id="customer"
+                    name="customer"
                     required
-                    min="0"
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                    placeholder="550000"
-                  />
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white"
+                    defaultValue={presetCustomerId}
+                  >
+                    <option value="">選択してください</option>
+                    {customers.map((customer) => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2 md:col-span-1">
+                  <label
+                    htmlFor="revenue_category"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    区分 <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="revenue_category"
+                    name="revenue_category"
+                    required
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white"
+                    defaultValue={presetRevenueCategory}
+                  >
+                    <option value="">選択してください</option>
+                    <option value="新築">新築</option>
+                    <option value="リフォーム">リフォーム</option>
+                    <option value="土地">土地</option>
+                    <option value="仲介料">仲介料</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2 md:col-span-1">
                   <label htmlFor="due_date" className="text-sm font-medium text-gray-700">
                     支払期限 <span className="text-red-500">*</span>
                   </label>
@@ -81,22 +197,120 @@ export default function NewInvoicePage() {
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                   />
                 </div>
+              </div>
 
-                <div className="space-y-2">
-                  <label htmlFor="status" className="text-sm font-medium text-gray-700">
-                    ステータス <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    id="status"
-                    required
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white"
+              {/* 請求明細 */}
+              <div className="space-y-3 border-t pt-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-gray-700">請求明細</h2>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAddItem}
                   >
-                    <option value="">選択してください</option>
-                    <option value="未請求">未請求</option>
-                    <option value="未入金">未入金</option>
-                    <option value="入金済">入金済</option>
-                  </select>
+                    <Plus className="h-4 w-4 mr-1" />
+                    明細を追加
+                  </Button>
                 </div>
+                {items.length > 0 ? (
+                  <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-medium text-gray-700">
+                            項目
+                          </th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-700">
+                            数量
+                          </th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-700">
+                            単価
+                          </th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-700">
+                            金額
+                          </th>
+                          <th className="px-3 py-2 text-center font-medium text-gray-700">
+                            操作
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {items.map((item) => (
+                          <tr key={item.id} className="bg-white">
+                            <td className="px-3 py-2">
+                              <input
+                                className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                value={item.name}
+                                onChange={(e) =>
+                                  handleUpdateItem(item.id, "name", e.target.value)
+                                }
+                                placeholder="工事内容など"
+                              />
+                            </td>
+                            <td className="px-3 py-2 text-right">
+                              <input
+                                type="number"
+                                min={0}
+                                className="w-20 px-2 py-1 border border-gray-300 rounded-md text-right text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                value={item.quantity}
+                                onChange={(e) =>
+                                  handleUpdateItem(item.id, "quantity", e.target.value)
+                                }
+                              />
+                            </td>
+                            <td className="px-3 py-2 text-right">
+                              <input
+                                type="number"
+                                min={0}
+                                className="w-28 px-2 py-1 border border-gray-300 rounded-md text-right text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                value={item.unit_price}
+                                onChange={(e) =>
+                                  handleUpdateItem(item.id, "unit_price", e.target.value)
+                                }
+                              />
+                            </td>
+                            <td className="px-3 py-2 text-right">
+                              {(item.quantity * item.unit_price).toLocaleString()}円
+                            </td>
+                            <td className="px-3 py-2 text-center">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleRemoveItem(item.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-gray-400" />
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">
+                    明細はまだありません。「明細を追加」から行を追加できます。
+                  </p>
+                )}
+
+                {/* 請求税抜き合計・消費税・請求合計（見積画面と同様） */}
+                {items.length > 0 && (
+                  <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200 max-w-sm ml-auto space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">請求税抜き合計</span>
+                      <span className="font-medium">{formatCurrency(subtotal)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">消費税（10%）</span>
+                      <span className="font-medium">{formatCurrency(tax)}</span>
+                    </div>
+                    <div className="flex justify-between text-base font-semibold pt-2 border-t border-gray-200">
+                      <span>請求合計</span>
+                      <span>{formatCurrency(total)}</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t">

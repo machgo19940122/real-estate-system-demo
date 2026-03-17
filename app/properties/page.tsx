@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { properties } from "@/src/data/mock";
+import { properties, type PropertyCategory } from "@/src/data/mock";
 import { formatDate } from "@/lib/utils";
 import { Search, X, Plus } from "lucide-react";
 import Link from "next/link";
@@ -19,17 +19,24 @@ import { Button } from "@/components/ui/button";
 
 export default function PropertiesPage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<PropertyCategory | "all">(
+    "all"
+  );
 
   const filteredProperties = useMemo(() => {
-    if (!searchQuery.trim()) return properties;
+    let list = properties;
+    if (categoryFilter !== "all") {
+      list = list.filter((p) => p.category === categoryFilter);
+    }
+    if (!searchQuery.trim()) return list;
     const query = searchQuery.toLowerCase();
-    return properties.filter(
+    return list.filter(
       (property) =>
         property.name.toLowerCase().includes(query) ||
         property.address.toLowerCase().includes(query) ||
         property.owner.toLowerCase().includes(query)
     );
-  }, [searchQuery]);
+  }, [searchQuery, categoryFilter]);
 
   return (
     <AppLayout>
@@ -52,25 +59,45 @@ export default function PropertiesPage() {
         {/* 検索バー */}
         <Card className="border-0 shadow-lg">
           <CardContent className="pt-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="物件名、住所、所有者で検索..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all shadow-sm"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+            <div className="flex flex-col md:flex-row md:items-center gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="物件名、住所、所有者で検索..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all shadow-sm"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-2 md:w-56">
+                <span className="text-sm text-gray-700 whitespace-nowrap">区分:</span>
+                <select
+                  value={categoryFilter}
+                  onChange={(e) =>
+                    setCategoryFilter(
+                      e.target.value === "all"
+                        ? "all"
+                        : (e.target.value as PropertyCategory)
+                    )
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
                 >
-                  <X className="h-5 w-5" />
-                </button>
-              )}
+                  <option value="all">すべて</option>
+                  <option value="新築">新築</option>
+                  <option value="土地">土地</option>
+                </select>
+              </div>
             </div>
-            {searchQuery && (
+            {(searchQuery || categoryFilter !== "all") && (
               <p className="text-sm text-gray-500 mt-2">
                 {filteredProperties.length}件の結果が見つかりました
               </p>
@@ -87,6 +114,7 @@ export default function PropertiesPage() {
               <TableHeader>
                 <TableRow className="bg-gray-50/50">
                   <TableHead className="font-semibold">物件名</TableHead>
+                  <TableHead className="font-semibold">区分</TableHead>
                   <TableHead className="font-semibold">住所</TableHead>
                   <TableHead className="font-semibold">所有者</TableHead>
                   <TableHead className="font-semibold">登録日</TableHead>
@@ -106,6 +134,11 @@ export default function PropertiesPage() {
                       >
                         {property.name}
                       </Link>
+                    </TableCell>
+                    <TableCell>
+                      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-50 text-blue-800">
+                        {property.category || "新築"}
+                      </span>
                     </TableCell>
                     <TableCell>{property.address}</TableCell>
                     <TableCell>{property.owner}</TableCell>

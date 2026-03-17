@@ -11,7 +11,6 @@ import {
   FileText,
   Receipt,
   UserCircle,
-  X,
   CreditCard,
   BarChart3,
 } from "lucide-react";
@@ -20,12 +19,12 @@ import { cn } from "@/lib/utils";
 const navigation = [
   { name: "ダッシュボード", href: "/dashboard", icon: LayoutDashboard },
   { name: "顧客一覧", href: "/customers", icon: Users },
-  { name: "物件一覧", href: "/properties", icon: Building2 },
-  { name: "案件一覧", href: "/projects", icon: FolderKanban },
+  { name: "新築物件一覧", href: "/properties", icon: Building2 },
   { name: "見積一覧", href: "/estimates", icon: FileText },
   { name: "請求一覧", href: "/invoices", icon: Receipt },
   { name: "入金管理", href: "/payments", icon: CreditCard },
-  { name: "月次集計", href: "/reports/monthly", icon: BarChart3 },
+  { name: "集計", href: "/reports", icon: BarChart3 },
+  { name: "担当者別集計", href: "/reports/staff", icon: BarChart3 },
   { name: "担当者一覧", href: "/staff", icon: UserCircle },
 ];
 
@@ -89,19 +88,13 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
             不動産見積・請求
           </h1>
         </div>
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="md:hidden p-2 -mr-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors active:bg-gray-200"
-            aria-label="メニューを閉じる"
-          >
-            <X className="h-6 w-6" />
-          </button>
-        )}
       </div>
       <nav className="flex-1 space-y-2 px-3 md:px-3 py-4 overflow-y-auto">
         {navigation.map((item) => {
-          const isActive = pathname === item.href || pathname?.startsWith(item.href + "/");
+          const isActive =
+            item.href === "/reports"
+              ? pathname === "/reports"
+              : pathname === item.href || pathname?.startsWith(item.href + "/");
           return (
             <Link
               key={item.name}

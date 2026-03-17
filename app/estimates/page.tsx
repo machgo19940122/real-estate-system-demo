@@ -12,27 +12,50 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { estimates, getProjectById, getStaffById } from "@/src/data/mock";
+import {
+  estimates,
+  projects,
+  getCustomerById,
+  getPropertyById,
+  getStaffById,
+  type RevenueCategory,
+} from "@/src/data/mock";
+
+const REVENUE_CATEGORY_OPTIONS: { value: RevenueCategory | ""; label: string }[] = [
+  { value: "", label: "全区分" },
+  { value: "新築", label: "新築" },
+  { value: "リフォーム", label: "リフォーム" },
+  { value: "土地", label: "土地" },
+  { value: "仲介料", label: "仲介料" },
+];
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { FileDown, Search, X, Plus } from "lucide-react";
 import Link from "next/link";
 
 export default function EstimatesPage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<RevenueCategory | "">("");
 
   const filteredEstimates = useMemo(() => {
-    if (!searchQuery.trim()) return estimates;
+    let list = estimates;
+    if (categoryFilter) {
+      list = list.filter((e) => (e as any).revenue_category === categoryFilter);
+    }
+    if (!searchQuery.trim()) return list;
     const query = searchQuery.toLowerCase();
-    return estimates.filter((estimate) => {
-      const project = getProjectById(estimate.project_id);
+    return list.filter((estimate) => {
+      const project = projects.find((p) => p.id === (estimate as any).project_id);
+      const customer = project ? getCustomerById(project.customer_id) : undefined;
+      const property = project ? getPropertyById(project.property_id) : undefined;
       const staff = estimate.staff_id ? getStaffById(estimate.staff_id) : undefined;
       return (
         estimate.estimate_number.toLowerCase().includes(query) ||
-        project?.name.toLowerCase().includes(query) ||
+        customer?.name.toLowerCase().includes(query) ||
+        property?.name.toLowerCase().includes(query) ||
         staff?.name.toLowerCase().includes(query)
       );
     });
-  }, [searchQuery]);
+  }, [searchQuery, categoryFilter]);
 
   return (
     <AppLayout>
@@ -55,25 +78,38 @@ export default function EstimatesPage() {
         {/* 検索バー */}
         <Card className="border-0 shadow-lg">
           <CardContent className="pt-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="見積番号、案件名、担当者名で検索..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all shadow-sm"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              )}
+            <div className="flex gap-3 items-center">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="見積番号、顧客名、物件名、担当者名で検索..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all shadow-sm"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                )}
+              </div>
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter((e.target.value || "") as RevenueCategory | "")}
+                className="py-3 px-4 min-w-[140px] border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all shadow-sm bg-white"
+              >
+                {REVENUE_CATEGORY_OPTIONS.map((opt) => (
+                  <option key={opt.value || "all"} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
             </div>
-            {searchQuery && (
+            {(searchQuery || categoryFilter) && (
               <p className="text-sm text-gray-500 mt-2">
                 {filteredEstimates.length}件の結果が見つかりました
               </p>
@@ -90,8 +126,10 @@ export default function EstimatesPage() {
               <TableHeader>
                 <TableRow className="bg-gray-50/50">
                   <TableHead className="font-semibold">見積番号</TableHead>
-                  <TableHead className="font-semibold">案件名</TableHead>
+                  <TableHead className="font-semibold">顧客</TableHead>
+                  <TableHead className="font-semibold">物件</TableHead>
                   <TableHead className="font-semibold">担当者</TableHead>
+                  <TableHead className="font-semibold">区分</TableHead>
                   <TableHead className="font-semibold">小計</TableHead>
                   <TableHead className="font-semibold">消費税</TableHead>
                   <TableHead className="font-semibold">合計</TableHead>
@@ -102,7 +140,9 @@ export default function EstimatesPage() {
               <TableBody>
                 {filteredEstimates.length > 0 ? (
                   filteredEstimates.map((estimate) => {
-                  const project = getProjectById(estimate.project_id);
+                  const project = projects.find((p) => p.id === (estimate as any).project_id);
+                  const customer = project ? getCustomerById(project.customer_id) : undefined;
+                  const property = project ? getPropertyById(project.property_id) : undefined;
                   const staff = estimate.staff_id ? getStaffById(estimate.staff_id) : undefined;
                   return (
                     <TableRow
@@ -118,12 +158,28 @@ export default function EstimatesPage() {
                         </Link>
                       </TableCell>
                       <TableCell>
-                        <Link
-                          href={`/projects/${project?.id}`}
-                          className="text-gray-700 hover:text-blue-600 hover:underline"
-                        >
-                          {project?.name || "-"}
-                        </Link>
+                        {customer ? (
+                          <Link
+                            href={`/customers/${customer.id}`}
+                            className="text-gray-700 hover:text-blue-600 hover:underline"
+                          >
+                            {customer.name}
+                          </Link>
+                        ) : (
+                          "-"
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {property ? (
+                          <Link
+                            href={`/properties/${property.id}`}
+                            className="text-gray-700 hover:text-blue-600 hover:underline"
+                          >
+                            {property.name}
+                          </Link>
+                        ) : (
+                          "-"
+                        )}
                       </TableCell>
                       <TableCell>
                         {staff ? (
@@ -137,6 +193,7 @@ export default function EstimatesPage() {
                           "-"
                         )}
                       </TableCell>
+                      <TableCell>{(estimate as any).revenue_category ?? "-"}</TableCell>
                       <TableCell>{formatCurrency(estimate.subtotal)}</TableCell>
                       <TableCell>{formatCurrency(estimate.tax)}</TableCell>
                       <TableCell className="font-semibold">
@@ -153,7 +210,7 @@ export default function EstimatesPage() {
                           }}
                         >
                           <FileDown className="h-4 w-4 mr-2" />
-                          PDF出力
+                          見積書PDF
                         </Button>
                       </TableCell>
                     </TableRow>

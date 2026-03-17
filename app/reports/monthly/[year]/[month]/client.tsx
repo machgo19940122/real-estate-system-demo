@@ -22,17 +22,22 @@ import {
   type RevenueCategory,
 } from "@/src/data/mock";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { ArrowLeft, Download, Lock, CheckCircle } from "lucide-react";
+import { ArrowLeft, Download, Lock, CheckCircle, TrendingUp } from "lucide-react";
 import Link from "next/link";
 
 interface MonthlyReportDetailClientProps {
   year: number;
   month: number;
+  title?: string;
+  /** 月次集計のみ締め処理・CSVを表示。年次・半期では false を渡す */
+  showClosingAndCsv?: boolean;
 }
 
 export function MonthlyReportDetailClient({
   year,
   month,
+  title,
+  showClosingAndCsv = true,
 }: MonthlyReportDetailClientProps) {
   const [isClosed, setIsClosed] = useState(false);
 
@@ -126,6 +131,11 @@ export function MonthlyReportDetailClient({
     0
   );
 
+  // 複合合計
+  const combinedNewAndReform = categoryTotals["新築"] + categoryTotals["リフォーム"];
+  const combinedNewReformLand =
+    categoryTotals["新築"] + categoryTotals["リフォーム"] + categoryTotals["土地"];
+
   const handleClose = () => {
     if (confirm(`${year}年${month}月の集計を締めますか？締め後は編集できません。`)) {
       setIsClosed(true);
@@ -180,7 +190,7 @@ export function MonthlyReportDetailClient({
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-4">
-            <Link href="/reports/monthly">
+            <Link href="/reports">
               <Button variant="outline" size="sm">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 戻る
@@ -188,26 +198,28 @@ export function MonthlyReportDetailClient({
             </Link>
             <div>
               <h1 className="text-2xl md:text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                {year}年{month}月 月次集計
+                {title ?? `${year}年${month}月 月次集計`}
               </h1>
               <p className="text-gray-600 mt-1 text-sm md:text-base">請求先別の詳細集計</p>
             </div>
           </div>
-          <div className="flex gap-2 flex-wrap">
-            {!isClosed && (
-              <Button onClick={handleClose} variant="outline" size="sm" className="flex-1 md:flex-none">
-                <Lock className="h-4 w-4 mr-2" />
-                締め処理
+          {showClosingAndCsv && (
+            <div className="flex gap-2 flex-wrap">
+              {!isClosed && (
+                <Button onClick={handleClose} variant="outline" size="sm" className="flex-1 md:flex-none">
+                  <Lock className="h-4 w-4 mr-2" />
+                  締め処理
+                </Button>
+              )}
+              <Button onClick={handleExportCSV} size="sm" className="flex-1 md:flex-none">
+                <Download className="h-4 w-4 mr-2" />
+                CSV出力
               </Button>
-            )}
-            <Button onClick={handleExportCSV} size="sm" className="flex-1 md:flex-none">
-              <Download className="h-4 w-4 mr-2" />
-              CSV出力
-            </Button>
-          </div>
+            </div>
+          )}
         </div>
 
-        {isClosed && (
+        {showClosingAndCsv && isClosed && (
           <Card className="border-0 shadow-lg bg-green-50 border-green-200">
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
@@ -225,18 +237,73 @@ export function MonthlyReportDetailClient({
 
         {/* 合計サマリー */}
         <Card className="border-0 shadow-lg bg-gradient-to-br from-indigo-50 to-white">
-          <CardHeader className="border-b">
-            <CardTitle className="text-lg md:text-xl">合計売上</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-xs md:text-sm font-medium text-gray-700">
+              {year}年{month}月 合計売上（詳細）
+            </CardTitle>
+            <div className="h-8 w-8 md:h-10 md:w-10 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center shadow-md">
+              <TrendingUp className="h-4 w-4 md:h-5 md:w-5 text-white" />
+            </div>
           </CardHeader>
-          <CardContent className="pt-6">
-            <div className="text-2xl md:text-4xl font-bold text-gray-900 mb-4">
+          <CardContent className="pt-4 md:pt-6">
+            <div className="text-2xl md:text-4xl font-bold text-gray-900">
               {formatCurrency(totalAmount)}
             </div>
+            <p className="text-xs text-gray-500 mt-2 mb-4">
+              {monthlyInvoices.length}件の請求から集計
+            </p>
+
+            {/* 複合合計（同一カード内） */}
+            <div className="grid gap-3 md:gap-4 md:grid-cols-2 mb-4">
+              <div className="rounded-lg border border-white/40 bg-white/60 backdrop-blur-sm px-4 py-3 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs md:text-sm font-medium text-gray-700">
+                    新築＋リフォーム
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
+                      <TrendingUp className="h-3 w-3 text-white" />
+                    </div>
+                    <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-md">
+                      <TrendingUp className="h-3 w-3 text-white" />
+                    </div>
+                  </div>
+                </div>
+                <div className="text-lg md:text-xl font-bold text-gray-900 mt-1">
+                  {formatCurrency(combinedNewAndReform)}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-white/40 bg-white/60 backdrop-blur-sm px-4 py-3 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs md:text-sm font-medium text-gray-700">
+                    新築＋リフォーム＋土地
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
+                      <TrendingUp className="h-3 w-3 text-white" />
+                    </div>
+                    <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-md">
+                      <TrendingUp className="h-3 w-3 text-white" />
+                    </div>
+                    <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-md">
+                      <TrendingUp className="h-3 w-3 text-white" />
+                    </div>
+                  </div>
+                </div>
+                <div className="text-lg md:text-xl font-bold text-gray-900 mt-1">
+                  {formatCurrency(combinedNewReformLand)}
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {(["新築", "リフォーム", "土地", "仲介料"] as RevenueCategory[]).map(
                 (category) => (
                   <div key={category} className="text-center">
-                    <p className="text-xs md:text-sm text-gray-600 mb-1">{categoryLabels[category]}</p>
+                    <p className="text-xs md:text-sm text-gray-600 mb-1">
+                      {categoryLabels[category]}
+                    </p>
                     <p className="text-lg md:text-xl font-bold text-gray-900">
                       {formatCurrency(categoryTotals[category])}
                     </p>

@@ -1,14 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { projects, staff } from "@/src/data/mock";
+import { customers, properties, staff } from "@/src/data/mock";
+import { formatCurrency } from "@/lib/utils";
 import { ArrowLeft, Plus, X } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+
+const TAX_RATE = 0.1; // 消費税率10%
 
 export default function NewEstimatePage() {
+  const searchParams = useSearchParams();
+  const presetPropertyId = searchParams.get("propertyId") ?? "";
+  const presetCustomerId = searchParams.get("customerId") ?? "";
+  const presetRevenueCategory = searchParams.get("revenueCategory") ?? "";
+
   const [items, setItems] = useState([
     { id: 1, name: "", quantity: 1, unit_price: 0 },
   ]);
@@ -39,6 +48,19 @@ export default function NewEstimatePage() {
     );
   };
 
+  const { subtotal, tax, total } = useMemo(() => {
+    const sub = items.reduce(
+      (sum, item) => sum + item.quantity * (item.unit_price || 0),
+      0
+    );
+    const taxAmount = Math.floor(sub * TAX_RATE);
+    return {
+      subtotal: sub,
+      tax: taxAmount,
+      total: sub + taxAmount,
+    };
+  }, [items]);
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -63,26 +85,74 @@ export default function NewEstimatePage() {
           </CardHeader>
           <CardContent className="pt-6">
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid gap-6 md:grid-cols-2">
-                <div className="space-y-2">
-                  <label htmlFor="project" className="text-sm font-medium text-gray-700">
-                    案件 <span className="text-red-500">*</span>
+              <div className="grid gap-6 md:grid-cols-4">
+                {/* 区分 */}
+                <div className="space-y-2 md:col-span-1">
+                  <label
+                    htmlFor="revenue_category"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    区分 <span className="text-red-500">*</span>
                   </label>
                   <select
-                    id="project"
+                    id="revenue_category"
+                    name="revenue_category"
                     required
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white"
+                    defaultValue={presetRevenueCategory}
                   >
                     <option value="">選択してください</option>
-                    {projects.map((project) => (
-                      <option key={project.id} value={project.id}>
-                        {project.name}
+                    <option value="新築">新築</option>
+                    <option value="リフォーム">リフォーム</option>
+                    <option value="土地">土地</option>
+                    <option value="仲介料">仲介料</option>
+                  </select>
+                </div>
+
+                {/* 物件 */}
+                <div className="space-y-2 md:col-span-1">
+                  <label htmlFor="property" className="text-sm font-medium text-gray-700">
+                    物件 <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="property"
+                    name="property"
+                    required
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white"
+                    defaultValue={presetPropertyId}
+                  >
+                    <option value="">選択してください</option>
+                    {properties.map((property) => (
+                      <option key={property.id} value={property.id}>
+                        {property.name}
                       </option>
                     ))}
                   </select>
                 </div>
 
-                <div className="space-y-2">
+                {/* 顧客 */}
+                <div className="space-y-2 md:col-span-1">
+                  <label htmlFor="customer" className="text-sm font-medium text-gray-700">
+                    顧客 <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="customer"
+                    name="customer"
+                    required
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white"
+                    defaultValue={presetCustomerId}
+                  >
+                    <option value="">選択してください</option>
+                    {customers.map((customer) => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 担当者 */}
+                <div className="space-y-2 md:col-span-1">
                   <label htmlFor="staff" className="text-sm font-medium text-gray-700">
                     担当者
                   </label>
@@ -180,6 +250,22 @@ export default function NewEstimatePage() {
                       </div>
                     </div>
                   ))}
+                </div>
+
+                {/* 見積税抜き合計・消費税・見積合計 */}
+                <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200 max-w-sm ml-auto space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">見積税抜き合計</span>
+                    <span className="font-medium">{formatCurrency(subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">消費税（10%）</span>
+                    <span className="font-medium">{formatCurrency(tax)}</span>
+                  </div>
+                  <div className="flex justify-between text-base font-semibold pt-2 border-t border-gray-200">
+                    <span>見積合計</span>
+                    <span>{formatCurrency(total)}</span>
+                  </div>
                 </div>
               </div>
 

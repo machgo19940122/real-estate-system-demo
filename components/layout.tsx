@@ -28,7 +28,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [isSidebarOpen]);
 
-  // 画面サイズ変更時にモバイルでは閉じる
+  // 画面サイズ変更時: モバイルにしたときだけ閉じる（PCではユーザーの開閉状態を維持）
   useEffect(() => {
     const handleResize = () => {
       if (typeof window !== "undefined" && window.innerWidth < 768) {
@@ -50,11 +50,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         />
       )}
 
-      {/* サイドバー */}
+      {/* サイドバー（開閉可能・PCでも閉じられる） */}
       <div
         className={cn(
-          "fixed md:static inset-y-0 left-0 z-50 transition-transform duration-300 ease-in-out",
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+          "inset-y-0 left-0 z-50 transition-transform duration-300 ease-in-out",
+          isSidebarOpen ? "fixed md:static translate-x-0" : "fixed -translate-x-full"
         )}
       >
         <Sidebar onClose={() => setIsSidebarOpen(false)} />
@@ -62,8 +62,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* メインコンテンツ */}
       <main className="flex-1 overflow-y-auto relative">
-        {/* ハンバーガーメニューボタン（モバイル） */}
-        <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-sm border-b border-gray-200 md:hidden">
+        {/* メニュー開閉ボタン（モバイル・PC共通） */}
+        <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-sm border-b border-gray-200">
           <div className="flex items-center gap-4 p-4">
             <Button
               variant="outline"
@@ -79,28 +79,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </Button>
             <h2 className="text-lg font-semibold">不動産見積・請求システム</h2>
           </div>
-        </div>
-
-        {/* デスクトップ用のサイドバートグルボタン */}
-        <div
-          className={cn(
-            "hidden md:block fixed top-4 z-50 transition-all duration-300",
-            isSidebarOpen ? "left-[280px]" : "left-4"
-          )}
-        >
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="bg-white/90 backdrop-blur-sm shadow-md hover:bg-white"
-            aria-label={isSidebarOpen ? "サイドバーを閉じる" : "サイドバーを開く"}
-          >
-            {isSidebarOpen ? (
-              <X className="h-4 w-4" />
-            ) : (
-              <Menu className="h-4 w-4" />
-            )}
-          </Button>
         </div>
 
         <div className="container mx-auto p-6 max-w-7xl">{children}</div>

@@ -125,26 +125,6 @@ function NewInvoiceForm() {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid gap-6 md:grid-cols-4">
                 <div className="space-y-2 md:col-span-1">
-                  <label htmlFor="property" className="text-sm font-medium text-gray-700">
-                    物件 <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    id="property"
-                    name="property"
-                    required
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white"
-                    defaultValue={presetPropertyId}
-                  >
-                    <option value="">選択してください</option>
-                    {properties.map((property) => (
-                      <option key={property.id} value={property.id}>
-                        {property.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-2 md:col-span-1">
                   <label htmlFor="customer" className="text-sm font-medium text-gray-700">
                     顧客 <span className="text-red-500">*</span>
                   </label>
@@ -161,6 +141,22 @@ function NewInvoiceForm() {
                         {customer.name}
                       </option>
                     ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2 md:col-span-1">
+                  <label htmlFor="status" className="text-sm font-medium text-gray-700">
+                    ステータス <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="status"
+                    name="status"
+                    required
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white"
+                    defaultValue="無し"
+                  >
+                    <option value="有">黄色有</option>
+                    <option value="無し">黄色無し</option>
                   </select>
                 </div>
 
@@ -196,6 +192,25 @@ function NewInvoiceForm() {
                     required
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                   />
+                </div>
+
+                <div className="space-y-2 md:col-span-1">
+                  <label htmlFor="property" className="text-sm font-medium text-gray-700">
+                    物件（任意）
+                  </label>
+                  <select
+                    id="property"
+                    name="property"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white"
+                    defaultValue={presetPropertyId}
+                  >
+                    <option value="">選択してください</option>
+                    {properties.map((property) => (
+                      <option key={property.id} value={property.id}>
+                        {property.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 

@@ -53,7 +53,7 @@ export default function PaymentsPage() {
       const invoice = getInvoiceById(payment.invoice_id);
       if (!invoice) return false;
       const status = calculateInvoiceStatus(invoice);
-      const isPaid = status === "有";
+      const isPaid = status === "入金済み";
       return statusFilter === "paid" ? isPaid : !isPaid;
     });
   }, [searchQuery, statusFilter]);
@@ -70,7 +70,7 @@ export default function PaymentsPage() {
           </div>
         </div>
 
-        {/* 検索バー＋入金ステータスフィルタ */}
+        {/* 検索バー＋入金状況フィルタ */}
         <Card className="border-0 shadow-lg">
           <CardContent className="pt-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -94,7 +94,7 @@ export default function PaymentsPage() {
               </div>
               <div className="flex items-center gap-2 md:w-64">
                 <span className="text-sm text-gray-600 whitespace-nowrap">
-                  入金ステータス
+                  入金状況
                 </span>
                 <select
                   value={statusFilter}

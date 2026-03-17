@@ -224,11 +224,7 @@ export default async function ProjectDetailPage({
                           <div className="text-right">
                             <p className="font-semibold">{formatCurrency(invoice.amount)}</p>
                             <span
-                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium mt-1 ${
-                                calculateInvoiceStatus(invoice) === "有"
-                                  ? "bg-yellow-100 text-yellow-800"
-                                  : "bg-gray-100 text-gray-800"
-                              }`}
+                              className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium mt-1 bg-gray-100 text-gray-800"
                             >
                               {calculateInvoiceStatus(invoice)}
                             </span>

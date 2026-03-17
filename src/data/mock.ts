@@ -50,6 +50,9 @@ export interface EstimateItem {
 
 export type InvoiceStatus = "有" | "無し";
 
+// 入金状況（入金額から自動判定）
+export type PaymentStatus = "未入金" | "一部入金" | "入金済み";
+
 // 請求書の明細行
 export interface InvoiceItem {
   id: number;
@@ -399,6 +402,76 @@ export function getInvoiceById(id: number): Invoice | undefined {
   return invoices.find((i) => i.id === id);
 }
 
+// -------------------------
+// In-memory update helpers (demo用)
+// -------------------------
+export function updateCustomer(id: number, patch: Partial<Omit<Customer, "id">>): Customer {
+  const idx = customers.findIndex((c) => c.id === id);
+  if (idx < 0) throw new Error(`Customer not found: ${id}`);
+  customers[idx] = { ...customers[idx], ...patch };
+  return customers[idx];
+}
+
+export function updateProperty(id: number, patch: Partial<Omit<Property, "id">>): Property {
+  const idx = properties.findIndex((p) => p.id === id);
+  if (idx < 0) throw new Error(`Property not found: ${id}`);
+  properties[idx] = { ...properties[idx], ...patch };
+  return properties[idx];
+}
+
+function normalizeEstimateItems(items: EstimateItem[] | undefined): EstimateItem[] | undefined {
+  if (!items) return items;
+  return items.map((it) => ({
+    ...it,
+    quantity: Number(it.quantity) || 0,
+    unit_price: Number(it.unit_price) || 0,
+    amount: (Number(it.quantity) || 0) * (Number(it.unit_price) || 0),
+  }));
+}
+
+export function updateEstimate(
+  id: number,
+  patch: Partial<Omit<Estimate, "id" | "estimate_number" | "created_at" | "project_id">>
+): Estimate {
+  const idx = estimates.findIndex((e) => e.id === id);
+  if (idx < 0) throw new Error(`Estimate not found: ${id}`);
+  const next: Estimate = { ...estimates[idx], ...patch };
+  next.items = normalizeEstimateItems(next.items);
+  const subtotal = (next.items ?? []).reduce((sum, it) => sum + (it.amount || 0), 0);
+  next.subtotal = subtotal;
+  next.tax = Math.floor(subtotal * 0.1);
+  next.total = next.subtotal + next.tax;
+  estimates[idx] = next;
+  return next;
+}
+
+function normalizeInvoiceItems(items: InvoiceItem[] | undefined): InvoiceItem[] | undefined {
+  if (!items) return items;
+  return items.map((it) => ({
+    ...it,
+    quantity: Number(it.quantity) || 0,
+    unit_price: Number(it.unit_price) || 0,
+    amount: (Number(it.quantity) || 0) * (Number(it.unit_price) || 0),
+  }));
+}
+
+export function updateInvoice(
+  id: number,
+  patch: Partial<Omit<Invoice, "id" | "invoice_number" | "created_at" | "project_id">>
+): Invoice {
+  const idx = invoices.findIndex((i) => i.id === id);
+  if (idx < 0) throw new Error(`Invoice not found: ${id}`);
+  const next: Invoice = { ...invoices[idx], ...patch };
+  next.items = normalizeInvoiceItems(next.items);
+  if (next.items && next.items.length > 0) {
+    const subtotal = next.items.reduce((sum, it) => sum + (it.amount || 0), 0);
+    const tax = Math.floor(subtotal * 0.1);
+    next.amount = subtotal + tax;
+  }
+  invoices[idx] = next;
+  return next;
+}
+
 // 案件タイプから売上区分へのマッピング
 export function getRevenueCategory(projectType: ProjectType): RevenueCategory {
   switch (projectType) {
@@ -442,9 +515,11 @@ export function getTotalPaidAmount(invoiceId: number): number {
 }
 
 // 請求のステータスを計算（入金額から自動判定）
-export function calculateInvoiceStatus(invoice: Invoice): InvoiceStatus {
+export function calculateInvoiceStatus(invoice: Invoice): PaymentStatus {
   const totalPaid = getTotalPaidAmount(invoice.id);
-  return totalPaid >= invoice.amount ? "有" : "無し";
+  if (totalPaid <= 0) return "未入金";
+  if (totalPaid >= invoice.amount) return "入金済み";
+  return "一部入金";
 }
 
 // 月次集計モック（参照用。実際の集計は入金日ベースで算出）

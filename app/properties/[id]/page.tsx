@@ -14,6 +14,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { ArrowLeft, MapPin, User, Calendar, Building2, FileText } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { PropertyDetailClient } from "./client";
 
 export default async function PropertyDetailPage({
   params,
@@ -73,49 +74,7 @@ export default async function PropertyDetailPage({
           </Link>
         </div>
 
-        {/* 基本情報 */}
-        <Card className="border-0 shadow-lg">
-          <CardHeader className="border-b">
-            <CardTitle className="flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-blue-600" />
-              基本情報
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6 space-y-4">
-            <div className="flex items-start gap-3">
-              <MapPin className="h-5 w-5 text-gray-400 mt-0.5" />
-              <div>
-                <p className="text-sm text-gray-500">住所</p>
-                <p className="font-medium">{property.address}</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <User className="h-5 w-5 text-gray-400 mt-0.5" />
-              <div>
-                <p className="text-sm text-gray-500">所有者</p>
-                <p className="font-medium">{property.owner}</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <Building2 className="h-5 w-5 text-gray-400 mt-0.5" />
-              <div>
-                <p className="text-sm text-gray-500">区分</p>
-                <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-sm font-medium bg-blue-50 text-blue-800">
-                  {property.category ?? "-"}
-                </span>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <Calendar className="h-5 w-5 text-gray-400 mt-0.5" />
-              <div>
-                <p className="text-sm text-gray-500">登録日</p>
-                <p className="font-medium">
-                  {property.created_at ? formatDate(property.created_at) : "-"}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <PropertyDetailClient initialProperty={property} />
 
         {/* 関連見積・請求 */}
         <div className="grid gap-6 md:grid-cols-2">
@@ -209,7 +168,7 @@ export default async function PropertyDetailPage({
                           支払期限
                         </TableHead>
                         <TableHead className="text-xs md:text-sm font-semibold">
-                          入金ステータス
+                          入金状況
                         </TableHead>
                       </TableRow>
                     </TableHeader>
@@ -223,7 +182,7 @@ export default async function PropertyDetailPage({
                           : undefined;
                         const status = calculateInvoiceStatus(invoice);
                         const isOverdue =
-                          status === "無し" &&
+                          status !== "入金済み" &&
                           new Date(invoice.due_date) < new Date();
                         return (
                           <TableRow key={invoice.id} className="hover:bg-gray-50/60">
@@ -253,9 +212,7 @@ export default async function PropertyDetailPage({
                             <TableCell className="text-xs md:text-sm">
                               <span
                                 className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
-                                  status === "有"
-                                    ? "bg-yellow-100 text-yellow-800"
-                                    : "bg-gray-100 text-gray-800"
+                                  "bg-gray-100 text-gray-800"
                                 }`}
                               >
                                 {status}

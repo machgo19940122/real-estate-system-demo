@@ -205,7 +205,7 @@ export default async function StaffDetailPage({
                       <TableHead className="text-xs md:text-sm font-semibold">物件</TableHead>
                       <TableHead className="text-xs md:text-sm font-semibold text-right">請求金額</TableHead>
                       <TableHead className="text-xs md:text-sm font-semibold">支払期限</TableHead>
-                      <TableHead className="text-xs md:text-sm font-semibold">入金ステータス</TableHead>
+                      <TableHead className="text-xs md:text-sm font-semibold">入金状況</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -215,7 +215,7 @@ export default async function StaffDetailPage({
                       const property = project ? getPropertyById(project.property_id) : undefined;
                       const status = calculateInvoiceStatus(invoice);
                       const isOverdue =
-                        status === "無し" && new Date(invoice.due_date) < new Date();
+                        status !== "入金済み" && new Date(invoice.due_date) < new Date();
                       return (
                         <TableRow key={invoice.id} className="hover:bg-gray-50/60">
                           <TableCell className="text-xs md:text-sm font-medium">

@@ -36,11 +36,15 @@ import { Button } from "@/components/ui/button";
 export default function InvoicesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<RevenueCategory | "">("");
+  const [statusFilter, setStatusFilter] = useState<"" | "有" | "無し">("");
 
   const filteredInvoices = useMemo(() => {
     let list = invoices;
     if (categoryFilter) {
       list = list.filter((inv) => getInvoiceRevenueCategory(inv) === categoryFilter);
+    }
+    if (statusFilter) {
+      list = list.filter((inv) => inv.status === statusFilter);
     }
     if (!searchQuery.trim()) return list;
     const query = searchQuery.toLowerCase();
@@ -48,15 +52,19 @@ export default function InvoicesPage() {
       const project = projects.find((p) => p.id === (invoice as any).project_id);
       const customer = project ? getCustomerById(project.customer_id) : undefined;
       const property = project ? getPropertyById(project.property_id) : undefined;
-      const status = calculateInvoiceStatus(invoice);
+      const paymentStatus = calculateInvoiceStatus(invoice);
+      const manualStatus = invoice.status;
+      const manualStatusLabel = manualStatus === "有" ? "黄色有" : "黄色無し";
       return (
         invoice.invoice_number.toLowerCase().includes(query) ||
         customer?.name.toLowerCase().includes(query) ||
         property?.name.toLowerCase().includes(query) ||
-        status.includes(query)
+        paymentStatus.includes(query) ||
+        manualStatus.includes(query) ||
+        manualStatusLabel.toLowerCase().includes(query)
       );
     });
-  }, [searchQuery, categoryFilter]);
+  }, [searchQuery, categoryFilter, statusFilter]);
 
   return (
     <AppLayout>
@@ -84,7 +92,7 @@ export default function InvoicesPage() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="請求番号、顧客名、物件名、ステータスで検索..."
+                  placeholder="請求番号、顧客名、物件名、ステータス、入金状況で検索..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all shadow-sm"
@@ -109,8 +117,17 @@ export default function InvoicesPage() {
                   </option>
                 ))}
               </select>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter((e.target.value || "") as "" | "有" | "無し")}
+                className="py-3 px-4 min-w-[140px] border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all shadow-sm bg-white"
+              >
+                <option value="">全ステータス</option>
+                <option value="有">黄色有</option>
+                <option value="無し">黄色無し</option>
+              </select>
             </div>
-            {(searchQuery || categoryFilter) && (
+            {(searchQuery || categoryFilter || statusFilter) && (
               <p className="text-sm text-gray-500 mt-2">
                 {filteredInvoices.length}件の結果が見つかりました
               </p>
@@ -132,7 +149,8 @@ export default function InvoicesPage() {
                   <TableHead className="font-semibold">区分</TableHead>
                   <TableHead className="font-semibold">金額</TableHead>
                   <TableHead className="font-semibold">支払期限</TableHead>
-                  <TableHead className="font-semibold">入金ステータス</TableHead>
+                  <TableHead className="font-semibold">ステータス</TableHead>
+                  <TableHead className="font-semibold">入金状況</TableHead>
                   <TableHead className="font-semibold">作成日</TableHead>
                   <TableHead className="font-semibold">操作</TableHead>
                 </TableRow>
@@ -143,9 +161,9 @@ export default function InvoicesPage() {
                   const project = projects.find((p) => p.id === (invoice as any).project_id);
                   const customer = project ? getCustomerById(project.customer_id) : undefined;
                   const property = project ? getPropertyById(project.property_id) : undefined;
-                  const status = calculateInvoiceStatus(invoice);
+                  const paymentStatus = calculateInvoiceStatus(invoice);
                   const isOverdue =
-                    status === "無し" &&
+                    paymentStatus !== "入金済み" &&
                     new Date(invoice.due_date) < new Date();
                   return (
                     <TableRow
@@ -199,9 +217,20 @@ export default function InvoicesPage() {
                       </TableCell>
                       <TableCell>
                         <span
-                          className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800"
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                            invoice.status === "有"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
                         >
-                          {status}
+                          {invoice.status === "有" ? "黄色有" : "黄色無し"}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-800"
+                        >
+                          {paymentStatus}
                         </span>
                       </TableCell>
                       <TableCell>{formatDate(invoice.created_at)}</TableCell>
@@ -222,7 +251,7 @@ export default function InvoicesPage() {
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={10} className="text-center py-8 text-gray-500">
                       検索結果が見つかりませんでした
                     </TableCell>
                   </TableRow>

@@ -21,6 +21,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { ArrowLeft, Mail, Phone, MapPin, Calendar, Building2 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CustomerDetailClient } from "./client";
 
 export default async function CustomerDetailPage({
   params,
@@ -63,85 +64,7 @@ export default async function CustomerDetailPage({
           </div>
         </div>
 
-        {/* 基本情報 + 請求関連（1枚のカードに統合） */}
-        <Card className="border-0 shadow-lg">
-          <CardHeader className="border-b">
-            <CardTitle className="flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-blue-600" />
-              基本情報・請求関連
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6 space-y-6">
-            <div className="grid gap-6 md:grid-cols-2">
-              <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <Phone className="h-5 w-5 text-gray-400 mt-0.5" />
-                  <div>
-                    <p className="text-sm text-gray-500">電話番号</p>
-                    <p className="font-medium">{customer.phone}</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Mail className="h-5 w-5 text-gray-400 mt-0.5" />
-                  <div>
-                    <p className="text-sm text-gray-500">メールアドレス</p>
-                    <p className="font-medium">{customer.email}</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <MapPin className="h-5 w-5 text-gray-400 mt-0.5" />
-                  <div>
-                    <p className="text-sm text-gray-500">住所</p>
-                    <p className="font-medium">{customer.address}</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Calendar className="h-5 w-5 text-gray-400 mt-0.5" />
-                  <div>
-                    <p className="text-sm text-gray-500">登録日</p>
-                    <p className="font-medium">
-                      {customer.created_at ? formatDate(customer.created_at) : "-"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">請求先担当者</p>
-                  <p className="font-medium">
-                    {customer.billing_contact_name || "-"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">請求先メールアドレス</p>
-                  <p className="font-medium">
-                    {customer.billing_contact_email || "-"}
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">締め条件</p>
-                    <p className="font-medium">
-                      {customer.billing_closing_day || "-"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">支払サイト</p>
-                    <p className="font-medium">
-                      {customer.billing_payment_site || "-"}
-                    </p>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">支払方法</p>
-                  <p className="font-medium">
-                    {customer.billing_payment_method || "-"}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <CustomerDetailClient initialCustomer={customer} />
 
         {/* 関連見積・請求 */}
         <div className="grid gap-6 md:grid-cols-2">
@@ -235,7 +158,7 @@ export default async function CustomerDetailPage({
                           支払期限
                         </TableHead>
                         <TableHead className="text-xs md:text-sm font-semibold">
-                          入金ステータス
+                          入金状況
                         </TableHead>
                       </TableRow>
                     </TableHeader>
@@ -249,7 +172,7 @@ export default async function CustomerDetailPage({
                           : undefined;
                         const status = calculateInvoiceStatus(invoice);
                         const isOverdue =
-                          status === "無し" &&
+                          status !== "入金済み" &&
                           new Date(invoice.due_date) < new Date();
                         return (
                           <TableRow key={invoice.id} className="hover:bg-gray-50/60">
@@ -278,11 +201,7 @@ export default async function CustomerDetailPage({
                             </TableCell>
                             <TableCell className="text-xs md:text-sm">
                               <span
-                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
-                                  status === "有"
-                                    ? "bg-yellow-100 text-yellow-800"
-                                    : "bg-gray-100 text-gray-800"
-                                }`}
+                                className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium bg-gray-100 text-gray-800"
                               >
                                 {status}
                               </span>

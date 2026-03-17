@@ -10,12 +10,13 @@ import {
 } from "@/components/ui/table";
 import {
   invoices,
+  payments,
   getCustomerById,
   getProjectById,
   calculateInvoiceStatus,
 } from "@/src/data/mock";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { TrendingUp, FileX, Clock, ArrowRight } from "lucide-react";
+import { TrendingUp, CircleDollarSign, Clock, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 export default function DashboardPage() {
@@ -25,20 +26,23 @@ export default function DashboardPage() {
   const monthlyRevenue = invoices
     .filter(
       (inv) =>
-        calculateInvoiceStatus(inv) === "有" &&
+        calculateInvoiceStatus(inv) === "入金済み" &&
         new Date(inv.created_at).getMonth() + 1 === currentMonth &&
         new Date(inv.created_at).getFullYear() === currentYear
     )
     .reduce((sum, inv) => sum + inv.amount, 0);
 
-  // 未請求件数（入金ステータスが無しの件数）
-  const unpaidInvoicesCount = invoices.filter(
-    (inv) => calculateInvoiceStatus(inv) === "無し"
-  ).length;
+  // 今月の入金金額（入金日ベース）
+  const monthlyPaidAmount = payments
+    .filter((p) => {
+      const d = new Date(p.payment_date);
+      return d.getMonth() + 1 === currentMonth && d.getFullYear() === currentYear;
+    })
+    .reduce((sum, p) => sum + p.amount, 0);
 
-  // 未入金件数（入金ステータスが無しの件数）
+  // 未入金件数（入金状況が入金済み以外の件数）
   const outstandingInvoicesCount = invoices.filter(
-    (inv) => calculateInvoiceStatus(inv) === "無し"
+    (inv) => calculateInvoiceStatus(inv) !== "入金済み"
   ).length;
 
   // 最近の請求（最新5件）
@@ -78,14 +82,16 @@ export default function DashboardPage() {
 
           <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-gradient-to-br from-orange-50 to-white">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-700">未請求件数</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-700">今月の入金金額</CardTitle>
               <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-md">
-                <FileX className="h-5 w-5 text-white" />
+                <CircleDollarSign className="h-5 w-5 text-white" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-gray-900">{unpaidInvoicesCount}</div>
-              <p className="text-xs text-gray-500 mt-2">請求書未発行</p>
+              <div className="text-3xl font-bold text-gray-900">
+                {formatCurrency(monthlyPaidAmount)}
+              </div>
+              <p className="text-xs text-gray-500 mt-2">入金日が今月のもの</p>
             </CardContent>
           </Card>
 
@@ -127,7 +133,7 @@ export default function DashboardPage() {
                   <TableHead className="font-semibold">顧客</TableHead>
                   <TableHead className="font-semibold text-right">金額</TableHead>
                   <TableHead className="font-semibold">支払期限</TableHead>
-                  <TableHead className="font-semibold">ステータス</TableHead>
+                  <TableHead className="font-semibold">入金状況</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

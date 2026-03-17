@@ -106,7 +106,7 @@ export default function StaffReportsPage() {
         const remaining = inv.amount - getTotalPaidAmount(inv.id);
         totalUnpaid += remaining;
         const status = calculateInvoiceStatus(inv);
-        if (status === "無し") {
+        if (status !== "入金済み") {
           unpaidCount += 1;
         }
       });
@@ -337,7 +337,7 @@ export default function StaffReportsPage() {
                     最終入金日（期間内）
                   </TableHead>
                   <TableHead className="font-semibold text-xs md:text-sm whitespace-nowrap">
-                    入金ステータス
+                    入金状況
                   </TableHead>
                 </TableRow>
               </TableHeader>

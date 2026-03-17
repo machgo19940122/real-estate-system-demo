@@ -31,7 +31,10 @@ export default function PaymentsPage() {
       ? payments
       : payments.filter((payment) => {
           const invoice = getInvoiceById(payment.invoice_id);
-          const project = invoice ? getProjectById(invoice.project_id) : undefined;
+          const project =
+            invoice && invoice.project_id != null
+              ? getProjectById(invoice.project_id)
+              : undefined;
           const customer = project ? getCustomerById(project.customer_id) : undefined;
           const query = searchQuery.toLowerCase();
           return (
@@ -142,9 +145,10 @@ export default function PaymentsPage() {
                     )
                     .map((payment) => {
                       const invoice = getInvoiceById(payment.invoice_id);
-                      const project = invoice
-                        ? getProjectById(invoice.project_id)
-                        : undefined;
+                      const project =
+                        invoice && invoice.project_id != null
+                          ? getProjectById(invoice.project_id)
+                          : undefined;
                       const customer = project
                         ? getCustomerById(project.customer_id)
                         : undefined;

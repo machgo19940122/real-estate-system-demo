@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, Suspense } from "react";
 import { AppLayout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,7 @@ type InvoiceItemForm = {
   unit_price: number;
 };
 
-export default function NewInvoicePage() {
+function NewInvoiceForm() {
   const searchParams = useSearchParams();
   const presetPropertyId = searchParams.get("propertyId") ?? "";
   const presetCustomerId = searchParams.get("customerId") ?? "";
@@ -331,3 +331,16 @@ export default function NewInvoicePage() {
   );
 }
 
+export default function NewInvoicePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[40vh]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+        </div>
+      }
+    >
+      <NewInvoiceForm />
+    </Suspense>
+  );
+}

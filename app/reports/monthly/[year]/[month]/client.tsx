@@ -65,7 +65,7 @@ export function MonthlyReportDetailClient({
     const grouped = new Map<number, typeof monthlyInvoices>();
 
     monthlyInvoices.forEach((invoice) => {
-      const project = getProjectById(invoice.project_id);
+      const project = getProjectById((invoice as any).project_id);
       if (!project) return;
 
       const customerId = project.customer_id;
@@ -88,7 +88,7 @@ export function MonthlyReportDetailClient({
     };
 
     monthlyInvoices.forEach((invoice) => {
-      const project = getProjectById(invoice.project_id);
+      const project = getProjectById((invoice as any).project_id);
       if (!project) return;
 
       const category = getRevenueCategory(project.type);
@@ -149,7 +149,7 @@ export function MonthlyReportDetailClient({
     csvRows.push("日付,取引先,摘要,金額,売上区分");
 
     monthlyInvoices.forEach((invoice) => {
-      const project = getProjectById(invoice.project_id);
+      const project = getProjectById((invoice as any).project_id);
       const customer = project ? getCustomerById(project.customer_id) : undefined;
       const category = project ? getRevenueCategory(project.type) : "リフォーム";
       const invoicePayments = getPaymentsByInvoiceId(invoice.id);
@@ -419,14 +419,14 @@ export function MonthlyReportDetailClient({
               <TableBody>
                 {monthlyInvoices
                   .sort((a, b) => {
-                    const projectA = getProjectById(a.project_id);
-                    const projectB = getProjectById(b.project_id);
+                    const projectA = getProjectById((a as any).project_id);
+                    const projectB = getProjectById((b as any).project_id);
                     const customerA = projectA ? getCustomerById(projectA.customer_id) : undefined;
                     const customerB = projectB ? getCustomerById(projectB.customer_id) : undefined;
                     return (customerA?.name || "").localeCompare(customerB?.name || "");
                   })
                   .map((invoice) => {
-                    const project = getProjectById(invoice.project_id);
+                    const project = getProjectById((invoice as any).project_id);
                     const customer = project ? getCustomerById(project.customer_id) : undefined;
                     const category = project ? getRevenueCategory(project.type) : "リフォーム";
                     const invoicePayments = getPaymentsByInvoiceId(invoice.id);

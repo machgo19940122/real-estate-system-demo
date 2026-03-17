@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, Suspense } from "react";
 import { AppLayout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ import { useSearchParams } from "next/navigation";
 
 const TAX_RATE = 0.1; // 消費税率10%
 
-export default function NewEstimatePage() {
+function NewEstimateForm() {
   const searchParams = useSearchParams();
   const presetPropertyId = searchParams.get("propertyId") ?? "";
   const presetCustomerId = searchParams.get("customerId") ?? "";
@@ -287,3 +287,16 @@ export default function NewEstimatePage() {
   );
 }
 
+export default function NewEstimatePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[40vh]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+        </div>
+      }
+    >
+      <NewEstimateForm />
+    </Suspense>
+  );
+}

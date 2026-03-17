@@ -1,8 +1,27 @@
-import { redirect } from "next/navigation";
+"use client";
 
-export default function RedirectOldMonthlyReportsRoute() {
-  redirect("/reports");
-}
+import { useState, useMemo } from "react";
+import { AppLayout } from "@/components/layout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  invoices,
+  getProjectById,
+  getRevenueCategory,
+  getPaymentsByInvoiceId,
+  getTotalPaidAmount,
+  type RevenueCategory,
+} from "@/src/data/mock";
+import { formatCurrency } from "@/lib/utils";
+import { Calendar, TrendingUp, FileText } from "lucide-react";
+import Link from "next/link";
+
+export default function MonthlyReportsPage() {
+  const currentDate = new Date();
+  const [periodMode, setPeriodMode] = useState<"monthly" | "half" | "year">("monthly");
+  const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth() + 1);
+  const [selectedHalf, setSelectedHalf] = useState<"H1" | "H2">("H1");
 
   // 期の開始月（一般的な4月開始を想定）
   const fiscalStartMonth = 4;
@@ -75,7 +94,7 @@ export default function RedirectOldMonthlyReportsRoute() {
     };
 
     periodInvoices.forEach((invoice) => {
-      const project = getProjectById(invoice.project_id);
+      const project = getProjectById((invoice as any).project_id);
       if (!project) return;
 
       const category = getRevenueCategory(project.type);
@@ -135,7 +154,7 @@ export default function RedirectOldMonthlyReportsRoute() {
   const invoicesByCustomer = useMemo(() => {
     const grouped = new Map<number, typeof periodInvoices>();
     periodInvoices.forEach((inv) => {
-      const project = getProjectById(inv.project_id);
+      const project = getProjectById((inv as any).project_id);
       if (!project) return;
       const customerId = project.customer_id;
       if (!grouped.has(customerId)) grouped.set(customerId, []);

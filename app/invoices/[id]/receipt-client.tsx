@@ -33,7 +33,10 @@ export function ReceiptClient({
   });
 
   const invoice = getInvoiceById(invoiceId);
-  const project = invoice ? getProjectById(invoice.project_id) : undefined;
+  const project =
+    invoice && invoice.project_id != null
+      ? getProjectById(invoice.project_id)
+      : undefined;
   const customer = project ? getCustomerById(project.customer_id) : undefined;
 
   // 入金済みまたは一部入金の場合のみ表示

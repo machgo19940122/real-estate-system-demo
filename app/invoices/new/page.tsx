@@ -26,6 +26,7 @@ function NewInvoiceForm() {
   const presetRevenueCategory = searchParams.get("revenueCategory") ?? "";
   const presetEstimateId = searchParams.get("estimateId");
 
+  const [note, setNote] = useState("");
   const [items, setItems] = useState<InvoiceItemForm[]>([]);
 
   // 見積から明細を引き継ぎ
@@ -96,7 +97,12 @@ function NewInvoiceForm() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    alert("新規請求登録機能（ダミー）\n請求明細行数: " + items.length);
+    alert(
+      "新規請求登録機能（ダミー）\n備考: " +
+        (note.trim() || "-") +
+        "\n請求明細行数: " +
+        items.length
+    );
   };
 
   return (
@@ -212,6 +218,18 @@ function NewInvoiceForm() {
                     ))}
                   </select>
                 </div>
+              </div>
+
+              {/* 備考 */}
+              <div className="space-y-2 border-t pt-4">
+                <label className="text-sm font-medium text-gray-700">備考</label>
+                <textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  rows={3}
+                  placeholder="備考を入力"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white"
+                />
               </div>
 
               {/* 請求明細 */}

@@ -27,6 +27,7 @@ export function EstimateEditClient({
   const [draftCategory, setDraftCategory] = useState<RevenueCategory | "">(
     (initialEstimate.revenue_category as RevenueCategory | undefined) ?? ""
   );
+  const [draftNote, setDraftNote] = useState(initialEstimate.note ?? "");
   const [draftItems, setDraftItems] = useState<DraftItem[]>(
     initialEstimate.items?.map((it) => ({ ...it })) ?? []
   );
@@ -43,12 +44,14 @@ export function EstimateEditClient({
 
   const startEdit = () => {
     setDraftCategory((estimate.revenue_category as RevenueCategory | undefined) ?? "");
+    setDraftNote(estimate.note ?? "");
     setDraftItems(estimate.items?.map((it) => ({ ...it })) ?? []);
     setIsEditing(true);
   };
 
   const cancelEdit = () => {
     setDraftCategory((estimate.revenue_category as RevenueCategory | undefined) ?? "");
+    setDraftNote(estimate.note ?? "");
     setDraftItems(estimate.items?.map((it) => ({ ...it })) ?? []);
     setIsEditing(false);
   };
@@ -57,6 +60,7 @@ export function EstimateEditClient({
     const next: Estimate = {
       ...estimate,
       revenue_category: (draftCategory || undefined) as RevenueCategory | undefined,
+      note: draftNote.trim() ? draftNote.trim() : undefined,
       items: draftItems.map((it) => {
         const qty = Number(it.quantity) || 0;
         const unit = Number(it.unit_price) || 0;
@@ -169,6 +173,23 @@ export function EstimateEditClient({
               <p className="text-sm text-gray-500">作成日</p>
               <p className="font-medium">{formatDate(estimate.created_at)}</p>
             </div>
+          </div>
+
+          <div className="space-y-2 pb-4 border-b">
+            <p className="text-sm text-gray-500">備考</p>
+            {isEditing ? (
+              <textarea
+                value={draftNote}
+                onChange={(e) => setDraftNote(e.target.value)}
+                rows={3}
+                placeholder="備考を入力"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
+              />
+            ) : (
+              <p className="text-sm text-gray-900 whitespace-pre-wrap">
+                {estimate.note?.trim() ? estimate.note : "-"}
+              </p>
+            )}
           </div>
 
           <div className="space-y-3">

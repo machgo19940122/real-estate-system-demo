@@ -18,13 +18,14 @@ function NewEstimateForm() {
   const presetCustomerId = searchParams.get("customerId") ?? "";
   const presetRevenueCategory = searchParams.get("revenueCategory") ?? "";
 
+  const [note, setNote] = useState("");
   const [items, setItems] = useState([
     { id: 1, name: "", quantity: 1, unit_price: 0 },
   ]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    alert("新規見積登録機能（ダミー）");
+    alert("新規見積登録機能（ダミー）\n備考: " + (note.trim() || "-"));
   };
 
   const addItem = () => {
@@ -170,6 +171,18 @@ function NewEstimateForm() {
               </div>
 
               <div className="space-y-4 pt-4 border-t">
+                {/* 備考 */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">備考</label>
+                  <textarea
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    rows={3}
+                    placeholder="備考を入力"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white"
+                  />
+                </div>
+
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold">見積項目</h3>
                   <Button

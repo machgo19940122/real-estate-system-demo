@@ -32,6 +32,7 @@ export function InvoiceEditClient({
     (initialInvoice.revenue_category as RevenueCategory | undefined) ?? ""
   );
   const [draftManualStatus, setDraftManualStatus] = useState<"有" | "無し">(initialInvoice.status);
+  const [draftNote, setDraftNote] = useState(initialInvoice.note ?? "");
   const [draftItems, setDraftItems] = useState<DraftItem[]>(initialInvoice.items?.map((it) => ({ ...it })) ?? []);
 
   const { subtotal, tax, total } = useMemo(() => {
@@ -44,10 +45,17 @@ export function InvoiceEditClient({
     return { subtotal: sub, tax: taxAmount, total: sub + taxAmount };
   }, [draftItems]);
 
+  const { viewSubtotal, viewTax, viewTotal } = useMemo(() => {
+    const sub = (invoice.items ?? []).reduce((sum, it) => sum + (Number(it.amount) || 0), 0);
+    const taxAmount = Math.floor(sub * TAX_RATE);
+    return { viewSubtotal: sub, viewTax: taxAmount, viewTotal: sub + taxAmount };
+  }, [invoice.items]);
+
   const startEdit = () => {
     setDraftDueDate(invoice.due_date);
     setDraftCategory((invoice.revenue_category as RevenueCategory | undefined) ?? "");
     setDraftManualStatus(invoice.status);
+    setDraftNote(invoice.note ?? "");
     setDraftItems(invoice.items?.map((it) => ({ ...it })) ?? []);
     setIsEditing(true);
   };
@@ -56,6 +64,7 @@ export function InvoiceEditClient({
     setDraftDueDate(invoice.due_date);
     setDraftCategory((invoice.revenue_category as RevenueCategory | undefined) ?? "");
     setDraftManualStatus(invoice.status);
+    setDraftNote(invoice.note ?? "");
     setDraftItems(invoice.items?.map((it) => ({ ...it })) ?? []);
     setIsEditing(false);
   };
@@ -77,6 +86,7 @@ export function InvoiceEditClient({
       due_date: draftDueDate,
       revenue_category: (draftCategory || undefined) as RevenueCategory | undefined,
       status: draftManualStatus,
+      note: draftNote.trim() ? draftNote.trim() : undefined,
       items,
       amount: items.length > 0 ? total : invoice.amount,
     };
@@ -175,6 +185,23 @@ export function InvoiceEditClient({
                   </span>
                 )}
               </div>
+            </div>
+
+            <div className="pt-2">
+              <p className="text-xs text-gray-500 mb-1">備考</p>
+              {isEditing ? (
+                <textarea
+                  value={draftNote}
+                  onChange={(e) => setDraftNote(e.target.value)}
+                  rows={3}
+                  placeholder="備考を入力"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
+                />
+              ) : (
+                <p className="text-sm text-gray-900 whitespace-pre-wrap">
+                  {invoice.note?.trim() ? invoice.note : "-"}
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-3 gap-4 pt-2">
@@ -332,6 +359,23 @@ export function InvoiceEditClient({
                   })}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {!isEditing && (invoice.items?.length ?? 0) > 0 && (
+            <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200 max-w-sm ml-auto space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">税抜き合計</span>
+                <span className="font-medium">{formatCurrency(viewSubtotal)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">消費税（10%）</span>
+                <span className="font-medium">{formatCurrency(viewTax)}</span>
+              </div>
+              <div className="flex justify-between text-base font-semibold pt-2 border-t border-gray-200">
+                <span>請求合計</span>
+                <span>{formatCurrency(viewTotal)}</span>
+              </div>
             </div>
           )}
 

@@ -13,6 +13,15 @@ export interface Customer {
   created_at?: string;
 }
 
+// 交渉履歴（顧客に複数紐づく想定）
+export interface NegotiationHistory {
+  id: number;
+  customer_id: number;
+  date: string; // YYYY-MM-DD
+  memo: string;
+  entered_by: string;
+}
+
 export type PropertyCategory = "新築" | "土地";
 
 export interface Property {
@@ -33,6 +42,7 @@ export interface Estimate {
   estimate_number: string;
   staff_id?: number;
   revenue_category?: RevenueCategory;
+  note?: string;
   subtotal: number;
   tax: number;
   total: number;
@@ -71,6 +81,7 @@ export interface Invoice {
   staff_id?: number;
   revenue_category?: RevenueCategory;
   invoice_number: string;
+  note?: string;
   amount: number;
   due_date: string;
   status: InvoiceStatus;
@@ -215,6 +226,52 @@ export const customers: Customer[] = [
   },
 ];
 
+// 交渉履歴：顧客ごとに複数件（デモ用）
+export const negotiationHistories: NegotiationHistory[] = [
+  {
+    id: 1,
+    customer_id: 1,
+    date: "2026-02-12",
+    memo: "リフォーム内容のヒアリング。キッチン・浴室の優先度が高い。概算希望。",
+    entered_by: "佐藤花子",
+  },
+  {
+    id: 2,
+    customer_id: 1,
+    date: "2026-02-15",
+    memo: "概算見積を送付。予算感の確認待ち。",
+    entered_by: "佐藤花子",
+  },
+  {
+    id: 3,
+    customer_id: 2,
+    date: "2026-03-02",
+    memo: "土地仲介手数料の条件確認。契約時期と支払い条件を調整中。",
+    entered_by: "田中次郎",
+  },
+  {
+    id: 4,
+    customer_id: 3,
+    date: "2026-03-10",
+    memo: "購入希望条件の整理。エリアは新宿近辺、予算上限9,500万。",
+    entered_by: "鈴木一郎",
+  },
+  {
+    id: 5,
+    customer_id: 4,
+    date: "2026-03-06",
+    memo: "物件内覧を実施。内覧後その場で申込、契約手続きへ。",
+    entered_by: "佐藤花子",
+  },
+];
+
+export function getNegotiationHistoriesByCustomerId(customerId: number): NegotiationHistory[] {
+  return negotiationHistories
+    .filter((h) => h.customer_id === customerId)
+    .slice()
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.id - a.id));
+}
+
 // 物件：新築・土地、複数顧客に紐づけ
 export const properties: Property[] = [
   {
@@ -301,32 +358,138 @@ export const projects: Project[] = [
 
 // 見積：全区分・複数顧客・複数担当者。revenue_category を明示。
 export const estimates: Estimate[] = [
-  { id: 1, project_id: 1, estimate_number: "EST-001", staff_id: 2, revenue_category: "リフォーム", subtotal: 500000, tax: 50000, total: 550000, created_at: "2025-03-07", items: [{ id: 1, name: "内装リフォーム工事", quantity: 1, unit_price: 300000, amount: 300000 }, { id: 2, name: "キッチン交換", quantity: 1, unit_price: 200000, amount: 200000 }] },
-  { id: 2, project_id: 2, estimate_number: "EST-002", staff_id: 2, revenue_category: "新築", subtotal: 180000000, tax: 18000000, total: 198000000, created_at: "2025-03-08", items: [{ id: 3, name: "新築戸建売買", quantity: 1, unit_price: 180000000, amount: 180000000 }] },
+  { id: 1, project_id: 1, estimate_number: "EST-001", staff_id: 2, revenue_category: "リフォーム", note: "現地調査は完了。色味はグレー系希望。", subtotal: 500000, tax: 50000, total: 550000, created_at: "2025-03-07", items: [{ id: 1, name: "内装リフォーム工事", quantity: 1, unit_price: 300000, amount: 300000 }, { id: 2, name: "キッチン交換", quantity: 1, unit_price: 200000, amount: 200000 }] },
+  { id: 2, project_id: 2, estimate_number: "EST-002", staff_id: 2, revenue_category: "新築", note: "重要事項説明の予定調整中。", subtotal: 180000000, tax: 18000000, total: 198000000, created_at: "2025-03-08", items: [{ id: 3, name: "新築戸建売買", quantity: 1, unit_price: 180000000, amount: 180000000 }] },
   { id: 3, project_id: 3, estimate_number: "EST-003", staff_id: 3, revenue_category: "仲介料", subtotal: 25000000, tax: 2500000, total: 27500000, created_at: "2025-03-12", items: [{ id: 4, name: "仲介手数料", quantity: 1, unit_price: 25000000, amount: 25000000 }] },
-  { id: 4, project_id: 5, estimate_number: "EST-004", staff_id: 5, revenue_category: "リフォーム", subtotal: 800000, tax: 80000, total: 880000, created_at: "2025-03-16", items: [{ id: 5, name: "キッチンリフォーム工事", quantity: 1, unit_price: 800000, amount: 800000 }] },
+  { id: 4, project_id: 5, estimate_number: "EST-004", staff_id: 5, revenue_category: "リフォーム", note: "既存設備の撤去範囲は別途確定。", subtotal: 800000, tax: 80000, total: 880000, created_at: "2025-03-16", items: [{ id: 5, name: "キッチンリフォーム工事", quantity: 1, unit_price: 800000, amount: 800000 }] },
   { id: 5, project_id: 4, estimate_number: "EST-005", staff_id: 2, revenue_category: "土地", subtotal: 350000000, tax: 35000000, total: 385000000, created_at: "2025-03-01", items: [{ id: 6, name: "中古マンション売買", quantity: 1, unit_price: 350000000, amount: 350000000 }] },
   { id: 6, project_id: 6, estimate_number: "EST-006", staff_id: 2, revenue_category: "新築", subtotal: 45000000, tax: 4500000, total: 49500000, created_at: "2026-02-15", items: [{ id: 7, name: "新築一戸建", quantity: 1, unit_price: 45000000, amount: 45000000 }] },
   { id: 7, project_id: 7, estimate_number: "EST-007", staff_id: 5, revenue_category: "リフォーム", subtotal: 1200000, tax: 120000, total: 1320000, created_at: "2026-02-25", items: [{ id: 8, name: "オフィスリノベーション", quantity: 1, unit_price: 1200000, amount: 1200000 }] },
-  { id: 8, project_id: 8, estimate_number: "EST-008", staff_id: 3, revenue_category: "土地", subtotal: 95000000, tax: 9500000, total: 104500000, created_at: "2026-03-01", items: [{ id: 9, name: "土地売買", quantity: 1, unit_price: 95000000, amount: 95000000 }] },
+  { id: 8, project_id: 8, estimate_number: "EST-008", staff_id: 3, revenue_category: "土地", note: "測量図の受領待ち。", subtotal: 95000000, tax: 9500000, total: 104500000, created_at: "2026-03-01", items: [{ id: 9, name: "土地売買", quantity: 1, unit_price: 95000000, amount: 95000000 }] },
   { id: 9, project_id: 9, estimate_number: "EST-009", staff_id: 3, revenue_category: "仲介料", subtotal: 18000000, tax: 1800000, total: 19800000, created_at: "2026-03-05", items: [{ id: 10, name: "仲介手数料", quantity: 1, unit_price: 18000000, amount: 18000000 }] },
-  { id: 10, project_id: 10, estimate_number: "EST-010", staff_id: 2, revenue_category: "新築", subtotal: 60000000, tax: 6000000, total: 66000000, created_at: "2026-03-08", items: [{ id: 11, name: "新築マンション", quantity: 1, unit_price: 60000000, amount: 60000000 }] },
+  { id: 10, project_id: 10, estimate_number: "EST-010", staff_id: 2, revenue_category: "新築", note: "住宅ローン事前審査中。", subtotal: 60000000, tax: 6000000, total: 66000000, created_at: "2026-03-08", items: [{ id: 11, name: "新築マンション", quantity: 1, unit_price: 60000000, amount: 60000000 }] },
   { id: 11, project_id: 11, estimate_number: "EST-011", staff_id: 3, revenue_category: "仲介料", subtotal: 12000000, tax: 1200000, total: 13200000, created_at: "2026-03-12", items: [{ id: 12, name: "土地仲介手数料", quantity: 1, unit_price: 12000000, amount: 12000000 }] },
-  { id: 12, project_id: 12, estimate_number: "EST-012", staff_id: 5, revenue_category: "リフォーム", subtotal: 350000, tax: 35000, total: 385000, created_at: "2026-03-18", items: [{ id: 13, name: "外装リフォーム", quantity: 1, unit_price: 350000, amount: 350000 }] },
+  { id: 12, project_id: 12, estimate_number: "EST-012", staff_id: 5, revenue_category: "リフォーム", note: "雨天時は日程再調整。", subtotal: 350000, tax: 35000, total: 385000, created_at: "2026-03-18", items: [{ id: 13, name: "外装リフォーム", quantity: 1, unit_price: 350000, amount: 350000 }] },
 ];
 
 // 請求：status は入金合計から算出（calculateInvoiceStatus）するため、ここは表示用に一致させておく
 export const invoices: Invoice[] = [
-  { id: 1, project_id: 1, invoice_number: "INV-001", amount: 550000, due_date: "2025-04-30", status: "有", created_at: "2025-03-07", revenue_category: "リフォーム" },
-  { id: 2, project_id: 2, invoice_number: "INV-002", amount: 198000000, due_date: "2025-05-10", status: "無し", created_at: "2025-03-08", revenue_category: "新築" },
-  { id: 3, project_id: 3, invoice_number: "INV-003", amount: 27500000, due_date: "2025-05-15", status: "無し", created_at: "2025-03-12", revenue_category: "仲介料" },
-  { id: 4, project_id: 4, invoice_number: "INV-004", amount: 385000000, due_date: "2025-04-20", status: "有", created_at: "2025-03-01", revenue_category: "土地" },
-  { id: 5, project_id: 5, invoice_number: "INV-005", amount: 880000, due_date: "2025-05-20", status: "無し", created_at: "2025-03-16", revenue_category: "リフォーム" },
-  { id: 6, project_id: 6, invoice_number: "INV-006", amount: 49500000, due_date: "2026-04-10", status: "有", created_at: "2026-02-15", revenue_category: "新築" },
-  { id: 7, project_id: 7, invoice_number: "INV-007", amount: 1320000, due_date: "2026-04-15", status: "有", created_at: "2026-02-25", revenue_category: "リフォーム" },
-  { id: 8, project_id: 8, invoice_number: "INV-008", amount: 104500000, due_date: "2026-04-20", status: "有", created_at: "2026-03-01", revenue_category: "土地" },
-  { id: 9, project_id: 9, invoice_number: "INV-009", amount: 19800000, due_date: "2026-04-25", status: "有", created_at: "2026-03-05", revenue_category: "仲介料" },
-  { id: 10, project_id: 11, invoice_number: "INV-010", amount: 13200000, due_date: "2026-05-10", status: "無し", created_at: "2026-03-15", revenue_category: "仲介料" },
+  {
+    id: 1,
+    project_id: 1,
+    invoice_number: "INV-001",
+    note: "見積EST-001に基づく請求。",
+    amount: 550000,
+    due_date: "2025-04-30",
+    status: "有",
+    created_at: "2025-03-07",
+    revenue_category: "リフォーム",
+    items: [
+      { id: 1, name: "内装リフォーム工事", quantity: 1, unit_price: 300000, amount: 300000 },
+      { id: 2, name: "キッチン交換", quantity: 1, unit_price: 200000, amount: 200000 },
+    ],
+  },
+  {
+    id: 2,
+    project_id: 2,
+    invoice_number: "INV-002",
+    note: "契約締結後に請求書PDF送付予定。",
+    amount: 198000000,
+    due_date: "2025-05-10",
+    status: "無し",
+    created_at: "2025-03-08",
+    revenue_category: "新築",
+    items: [{ id: 1, name: "新築戸建売買", quantity: 1, unit_price: 180000000, amount: 180000000 }],
+  },
+  {
+    id: 3,
+    project_id: 3,
+    invoice_number: "INV-003",
+    amount: 27500000,
+    due_date: "2025-05-15",
+    status: "無し",
+    created_at: "2025-03-12",
+    revenue_category: "仲介料",
+    items: [{ id: 1, name: "仲介手数料", quantity: 1, unit_price: 25000000, amount: 25000000 }],
+  },
+  {
+    id: 4,
+    project_id: 4,
+    invoice_number: "INV-004",
+    amount: 385000000,
+    due_date: "2025-04-20",
+    status: "有",
+    created_at: "2025-03-01",
+    revenue_category: "土地",
+    items: [{ id: 1, name: "中古マンション売買", quantity: 1, unit_price: 350000000, amount: 350000000 }],
+  },
+  {
+    id: 5,
+    project_id: 5,
+    invoice_number: "INV-005",
+    amount: 880000,
+    due_date: "2025-05-20",
+    status: "無し",
+    created_at: "2025-03-16",
+    revenue_category: "リフォーム",
+    items: [{ id: 1, name: "キッチンリフォーム工事", quantity: 1, unit_price: 800000, amount: 800000 }],
+  },
+  {
+    id: 6,
+    project_id: 6,
+    invoice_number: "INV-006",
+    note: "入金確認済み（振込）。",
+    amount: 49500000,
+    due_date: "2026-04-10",
+    status: "有",
+    created_at: "2026-02-15",
+    revenue_category: "新築",
+    items: [{ id: 1, name: "新築一戸建", quantity: 1, unit_price: 45000000, amount: 45000000 }],
+  },
+  {
+    id: 7,
+    project_id: 7,
+    invoice_number: "INV-007",
+    amount: 1320000,
+    due_date: "2026-04-15",
+    status: "有",
+    created_at: "2026-02-25",
+    revenue_category: "リフォーム",
+    items: [{ id: 1, name: "オフィスリノベーション", quantity: 1, unit_price: 1200000, amount: 1200000 }],
+  },
+  {
+    id: 8,
+    project_id: 8,
+    invoice_number: "INV-008",
+    amount: 104500000,
+    due_date: "2026-04-20",
+    status: "有",
+    created_at: "2026-03-01",
+    revenue_category: "土地",
+    items: [{ id: 1, name: "土地売買", quantity: 1, unit_price: 95000000, amount: 95000000 }],
+  },
+  {
+    id: 9,
+    project_id: 9,
+    invoice_number: "INV-009",
+    amount: 19800000,
+    due_date: "2026-04-25",
+    status: "有",
+    created_at: "2026-03-05",
+    revenue_category: "仲介料",
+    items: [{ id: 1, name: "仲介手数料", quantity: 1, unit_price: 18000000, amount: 18000000 }],
+  },
+  {
+    id: 10,
+    project_id: 11,
+    invoice_number: "INV-010",
+    amount: 13200000,
+    due_date: "2026-05-10",
+    status: "無し",
+    created_at: "2026-03-15",
+    revenue_category: "仲介料",
+    items: [{ id: 1, name: "土地仲介手数料", quantity: 1, unit_price: 12000000, amount: 12000000 }],
+  },
 ];
 
 // ヘルパー関数

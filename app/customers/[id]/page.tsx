@@ -16,12 +16,14 @@ import {
   invoices,
   getPropertyById,
   calculateInvoiceStatus,
+  getNegotiationHistoriesByCustomerId,
 } from "@/src/data/mock";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { ArrowLeft, Mail, Phone, MapPin, Calendar, Building2 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CustomerDetailClient } from "./client";
+import { NegotiationHistoryClient } from "./negotiation-history-client";
 
 export default async function CustomerDetailPage({
   params,
@@ -46,6 +48,8 @@ export default async function CustomerDetailPage({
     customerProjectIds.includes((inv as any).project_id)
   );
 
+  const negotiationHistories = getNegotiationHistoriesByCustomerId(customer.id);
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -65,6 +69,9 @@ export default async function CustomerDetailPage({
         </div>
 
         <CustomerDetailClient initialCustomer={customer} />
+
+        {/* 交渉履歴 */}
+        <NegotiationHistoryClient initialHistories={negotiationHistories} />
 
         {/* 関連見積・請求 */}
         <div className="grid gap-6 md:grid-cols-2">

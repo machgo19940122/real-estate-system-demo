@@ -1,13 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Combobox } from "@base-ui/react/combobox";
-import { Check } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Payee } from "@/src/data/mock";
 
 const INPUT_CLASS =
-  "w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white";
+  "w-full h-11 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white";
 
 type PayeeOption = { value: string; label: string };
 
@@ -27,6 +27,7 @@ export function PayeeCombobox({
   disabled?: boolean;
 }) {
   const [inputValue, setInputValue] = useState("");
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   const options = useMemo<PayeeOption[]>(
     () => payees.map((p) => ({ value: String(p.id), label: p.name })),
@@ -37,6 +38,11 @@ export function PayeeCombobox({
     if (!value) return null;
     return options.find((o) => o.value === value) ?? null;
   }, [options, value]);
+
+  useEffect(() => {
+    // 編集画面など「初期状態で値が入っている」ケースで、入力欄にも表示を反映する
+    setInputValue(selected?.label ?? "");
+  }, [selected?.value]);
 
   const filtered = useMemo(() => {
     const q = inputValue.trim().toLowerCase();
@@ -56,22 +62,46 @@ export function PayeeCombobox({
   return (
     <Combobox.Root
       value={selected}
+      inputValue={inputValue}
       onValueChange={(next) => {
         onChange(next ? next.value : "");
-        setInputValue("");
+        setInputValue(next ? next.label : "");
       }}
-      defaultInputValue=""
       onInputValueChange={(next) => setInputValue(next)}
       itemToStringLabel={(item) => item.label}
       itemToStringValue={(item) => item.value}
       isItemEqualToValue={(item, v) => item.value === v.value}
       disabled={disabled}
     >
-      <Combobox.Input
-        aria-label={ariaLabel}
-        placeholder={placeholder}
-        className={cn(INPUT_CLASS, disabled && "disabled:bg-gray-50 disabled:text-gray-500")}
-      />
+      <div className="relative">
+        <Combobox.Input
+          ref={inputRef}
+          aria-label={ariaLabel}
+          placeholder={placeholder}
+          className={cn(
+            INPUT_CLASS,
+            "pr-10",
+            disabled && "disabled:bg-gray-50 disabled:text-gray-500"
+          )}
+          onFocus={(e) => e.currentTarget.select()}
+        />
+        {!!value && !disabled && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onChange("");
+              setInputValue("");
+              inputRef.current?.focus();
+            }}
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+            aria-label="振込先の選択を解除"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
 
       <Combobox.Portal>
         <Combobox.Positioner className="z-50">

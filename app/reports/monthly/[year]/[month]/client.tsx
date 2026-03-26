@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -22,8 +23,28 @@ import {
   type RevenueCategory,
 } from "@/src/data/mock";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { ArrowLeft, Download, Lock, CheckCircle, TrendingUp } from "lucide-react";
+import { ArrowLeft, Download, Lock, CheckCircle, TrendingUp, ChevronDown, ChevronUp } from "lucide-react";
 import Link from "next/link";
+
+const ALL_CATEGORIES: RevenueCategory[] = ["新築", "リフォーム", "土地", "仲介料"];
+
+function defaultSectionIncluded(): Record<RevenueCategory, boolean> {
+  return { 新築: true, リフォーム: true, 土地: true, 仲介料: true };
+}
+
+const categoryAccent: Record<RevenueCategory, string> = {
+  新築: "bg-blue-500",
+  リフォーム: "bg-orange-500",
+  土地: "bg-emerald-500",
+  仲介料: "bg-purple-500",
+};
+
+const categoryChipClass: Record<RevenueCategory, string> = {
+  新築: "bg-blue-50 text-blue-700 border-blue-200",
+  リフォーム: "bg-orange-50 text-orange-700 border-orange-200",
+  土地: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  仲介料: "bg-purple-50 text-purple-700 border-purple-200",
+};
 
 interface MonthlyReportDetailClientProps {
   year: number;
@@ -40,6 +61,9 @@ export function MonthlyReportDetailClient({
   showClosingAndCsv = true,
 }: MonthlyReportDetailClientProps) {
   const [isClosed, setIsClosed] = useState(false);
+  const [sectionIncluded, setSectionIncluded] =
+    useState<Record<RevenueCategory, boolean>>(defaultSectionIncluded);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   // 選択された年月の入金済み請求を取得
   const monthlyInvoices = useMemo(() => {
@@ -60,11 +84,21 @@ export function MonthlyReportDetailClient({
     });
   }, [year, month]);
 
+  // チェックされた区分の請求だけに絞り込み（顧客別集計・CSVに反映）
+  const filteredMonthlyInvoices = useMemo(() => {
+    return monthlyInvoices.filter((invoice) => {
+      const project = getProjectById((invoice as any).project_id);
+      if (!project) return false;
+      const category = getRevenueCategory(project.type);
+      return Boolean(sectionIncluded[category]);
+    });
+  }, [monthlyInvoices, sectionIncluded]);
+
   // 顧客別にグループ化
   const invoicesByCustomer = useMemo(() => {
     const grouped = new Map<number, typeof monthlyInvoices>();
 
-    monthlyInvoices.forEach((invoice) => {
+    filteredMonthlyInvoices.forEach((invoice) => {
       const project = getProjectById((invoice as any).project_id);
       if (!project) return;
 
@@ -76,7 +110,7 @@ export function MonthlyReportDetailClient({
     });
 
     return grouped;
-  }, [monthlyInvoices]);
+  }, [filteredMonthlyInvoices]);
 
   // 売上区分別集計（サマリー用）
   const invoicesByCategory = useMemo(() => {
@@ -98,7 +132,7 @@ export function MonthlyReportDetailClient({
     return grouped;
   }, [monthlyInvoices]);
 
-  // 区分別集計
+  // 区分別集計（金額・件数）
   const categoryTotals = useMemo(() => {
     const totals: Record<RevenueCategory, number> = {
       新築: 0,
@@ -106,8 +140,15 @@ export function MonthlyReportDetailClient({
       土地: 0,
       仲介料: 0,
     };
+    const counts: Record<RevenueCategory, number> = {
+      新築: 0,
+      リフォーム: 0,
+      土地: 0,
+      仲介料: 0,
+    };
 
     Object.entries(invoicesByCategory).forEach(([category, categoryInvoices]) => {
+      const cat = category as RevenueCategory;
       categoryInvoices.forEach((invoice) => {
         const invoicePayments = getPaymentsByInvoiceId(invoice.id);
         const monthlyPaidAmount = invoicePayments
@@ -119,22 +160,47 @@ export function MonthlyReportDetailClient({
             );
           })
           .reduce((sum, p) => sum + p.amount, 0);
-        totals[category as RevenueCategory] += monthlyPaidAmount;
+        totals[cat] += monthlyPaidAmount;
+        if (monthlyPaidAmount > 0) counts[cat]++;
       });
     });
 
-    return totals;
+    return { totals, counts };
   }, [invoicesByCategory, year, month]);
 
-  const totalAmount = Object.values(categoryTotals).reduce(
-    (sum, amount) => sum + amount,
-    0
-  );
+  const periodLabel = title ?? `${year}年${month}月`;
 
-  // 複合合計
-  const combinedNewAndReform = categoryTotals["新築"] + categoryTotals["リフォーム"];
-  const combinedNewReformLand =
-    categoryTotals["新築"] + categoryTotals["リフォーム"] + categoryTotals["土地"];
+  const selectionSummary = useMemo(() => {
+    let amount = 0;
+    let invoiceCount = 0;
+    const names: string[] = [];
+    for (const cat of ALL_CATEGORIES) {
+      if (!sectionIncluded[cat]) continue;
+      amount += categoryTotals.totals[cat];
+      invoiceCount += categoryTotals.counts[cat];
+      names.push(cat);
+    }
+    const allOn = ALL_CATEGORIES.every((c) => sectionIncluded[c]);
+    const summaryTitle = allOn
+      ? `${periodLabel} 総合計`
+      : names.length === 0
+        ? `${periodLabel} 合計`
+        : `${periodLabel} 選択中の合計（${names.join("・")}）`;
+    const hint =
+      names.length === 0
+        ? "区分を1つ以上選択してください"
+        : allOn
+          ? `${monthlyInvoices.length}件の請求から集計（全区分）`
+          : `選択した区分の入金合計（該当請求 ${invoiceCount} 件）`;
+    return { amount, title: summaryTitle, hint, allOn };
+  }, [sectionIncluded, categoryTotals, periodLabel, monthlyInvoices.length]);
+
+  const selectedCategories = useMemo(() => {
+    return ALL_CATEGORIES.filter((c) => sectionIncluded[c]);
+  }, [sectionIncluded]);
+
+  const isAllSelected = selectedCategories.length === ALL_CATEGORIES.length;
+  const isNoneSelected = selectedCategories.length === 0;
 
   const handleClose = () => {
     if (confirm(`${year}年${month}月の集計を締めますか？締め後は編集できません。`)) {
@@ -148,7 +214,7 @@ export function MonthlyReportDetailClient({
     const csvRows: string[] = [];
     csvRows.push("日付,取引先,摘要,金額,売上区分");
 
-    monthlyInvoices.forEach((invoice) => {
+    filteredMonthlyInvoices.forEach((invoice) => {
       const project = getProjectById((invoice as any).project_id);
       const customer = project ? getCustomerById(project.customer_id) : undefined;
       const category = project ? getRevenueCategory(project.type) : "リフォーム";
@@ -235,83 +301,151 @@ export function MonthlyReportDetailClient({
           </Card>
         )}
 
-        {/* 合計サマリー */}
-        <Card className="border-0 shadow-lg bg-gradient-to-br from-indigo-50 to-white">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs md:text-sm font-medium text-gray-700">
-              {year}年{month}月 合計売上（詳細）
-            </CardTitle>
-            <div className="h-8 w-8 md:h-10 md:w-10 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center shadow-md">
-              <TrendingUp className="h-4 w-4 md:h-5 md:w-5 text-white" />
+        {/* 売上サマリー＋区分選択（集計一覧と同じUI） */}
+        <Card className="border-0 shadow-lg overflow-hidden">
+          <div className="bg-gradient-to-br from-indigo-50/90 to-white px-5 sm:px-6 pt-5 pb-5 border-b border-gray-100">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-gray-500 leading-snug">
+                  {selectionSummary.title}
+                </p>
+                <p className="text-3xl sm:text-4xl font-bold text-gray-900 mt-1 tabular-nums tracking-tight">
+                  {formatCurrency(selectionSummary.amount)}
+                </p>
+                <p className="text-xs text-gray-500 mt-2">{selectionSummary.hint}</p>
+              </div>
+              <div className="rounded-xl bg-indigo-600 p-2.5 text-white shadow-sm shrink-0">
+                <TrendingUp className="h-5 w-5" />
+              </div>
             </div>
-          </CardHeader>
-          <CardContent className="pt-4 md:pt-6">
-            <div className="text-2xl md:text-4xl font-bold text-gray-900">
-              {formatCurrency(totalAmount)}
-            </div>
-            <p className="text-xs text-gray-500 mt-2 mb-4">
-              {monthlyInvoices.length}件の請求から集計
-            </p>
+          </div>
 
-            {/* 複合合計（同一カード内） */}
-            <div className="grid gap-3 md:gap-4 md:grid-cols-2 mb-4">
-              <div className="rounded-lg border border-white/40 bg-white/60 backdrop-blur-sm px-4 py-3 shadow-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-xs md:text-sm font-medium text-gray-700">
-                    新築＋リフォーム
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
-                      <TrendingUp className="h-3 w-3 text-white" />
-                    </div>
-                    <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-md">
-                      <TrendingUp className="h-3 w-3 text-white" />
-                    </div>
+          <div className="px-5 sm:px-6 py-3 bg-gray-50/90 border-b border-gray-100">
+            <button
+              type="button"
+              onClick={() => setIsFilterOpen((v) => !v)}
+              aria-expanded={isFilterOpen}
+              className="w-full flex items-center justify-between gap-3"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                  含める区分
+                </span>
+                {!isFilterOpen && (
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    {isAllSelected ? (
+                      <Badge variant="secondary" className="h-6">
+                        全区分
+                      </Badge>
+                    ) : isNoneSelected ? (
+                      <Badge variant="destructive" className="h-6">
+                        未選択
+                      </Badge>
+                    ) : (
+                      <>
+                        {selectedCategories.slice(0, 3).map((c) => (
+                          <Badge
+                            key={c}
+                            variant="outline"
+                            className={`h-6 ${categoryChipClass[c as RevenueCategory]}`}
+                          >
+                            {c}
+                          </Badge>
+                        ))}
+                        {selectedCategories.length > 3 && (
+                          <Badge variant="outline" className="h-6">
+                            +{selectedCategories.length - 3}
+                          </Badge>
+                        )}
+                      </>
+                    )}
                   </div>
+                )}
+              </div>
+              <span className="inline-flex items-center gap-1 text-xs text-gray-500 whitespace-nowrap">
+                {isFilterOpen ? "閉じる" : "開く"}
+                {isFilterOpen ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+              </span>
+            </button>
+          </div>
+
+          {isFilterOpen && (
+            <CardContent className="p-0">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-5 sm:px-6 py-3 border-b border-gray-100 bg-white">
+                <div className="text-xs text-gray-500">
+                  チェックした区分の入金額を合計します。
                 </div>
-                <div className="text-lg md:text-xl font-bold text-gray-900 mt-1">
-                  {formatCurrency(combinedNewAndReform)}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={() => setSectionIncluded(defaultSectionIncluded())}
+                  >
+                    すべて選択
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={() =>
+                      setSectionIncluded({
+                        新築: false,
+                        リフォーム: false,
+                        土地: false,
+                        仲介料: false,
+                      })
+                    }
+                  >
+                    すべて解除
+                  </Button>
                 </div>
               </div>
 
-              <div className="rounded-lg border border-white/40 bg-white/60 backdrop-blur-sm px-4 py-3 shadow-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-xs md:text-sm font-medium text-gray-700">
-                    新築＋リフォーム＋土地
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
-                      <TrendingUp className="h-3 w-3 text-white" />
-                    </div>
-                    <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-md">
-                      <TrendingUp className="h-3 w-3 text-white" />
-                    </div>
-                    <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-md">
-                      <TrendingUp className="h-3 w-3 text-white" />
-                    </div>
-                  </div>
-                </div>
-                <div className="text-lg md:text-xl font-bold text-gray-900 mt-1">
-                  {formatCurrency(combinedNewReformLand)}
-                </div>
-              </div>
-            </div>
+              <ul className="divide-y divide-gray-100">
+                {ALL_CATEGORIES.map((category) => (
+                  <li key={category}>
+                    <label className="flex items-center gap-3 px-5 sm:px-6 py-3 cursor-pointer hover:bg-gray-50/80 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={sectionIncluded[category]}
+                        onChange={() =>
+                          setSectionIncluded((prev) => ({
+                            ...prev,
+                            [category]: !prev[category],
+                          }))
+                        }
+                        className="size-4 rounded border-gray-300 text-indigo-600 focus:ring-blue-500 shrink-0"
+                      />
+                      <span
+                        className={`size-2 rounded-full shrink-0 ${categoryAccent[category]}`}
+                        aria-hidden
+                      />
+                      <span className="text-sm font-medium text-gray-900 w-16 sm:w-20 shrink-0">
+                        {categoryLabels[category]}
+                      </span>
+                      <span className="text-xs text-gray-500 flex-1 min-w-0">
+                        {categoryTotals.counts[category]}件
+                      </span>
+                      <span className="text-sm font-semibold text-gray-900 tabular-nums shrink-0">
+                        {formatCurrency(categoryTotals.totals[category])}
+                      </span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {(["新築", "リフォーム", "土地", "仲介料"] as RevenueCategory[]).map(
-                (category) => (
-                  <div key={category} className="text-center">
-                    <p className="text-xs md:text-sm text-gray-600 mb-1">
-                      {categoryLabels[category]}
-                    </p>
-                    <p className="text-lg md:text-xl font-bold text-gray-900">
-                      {formatCurrency(categoryTotals[category])}
-                    </p>
-                  </div>
-                )
-              )}
-            </div>
-          </CardContent>
+              <p className="px-5 sm:px-6 py-3 text-xs text-gray-500 border-t border-gray-100 bg-white">
+                初期は全区分オン（総合計）です。入金は対象月に計上された分のみです。
+              </p>
+            </CardContent>
+          )}
         </Card>
 
         {/* 顧客別集計サマリー */}
@@ -331,66 +465,74 @@ export function MonthlyReportDetailClient({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {Array.from(invoicesByCustomer.entries())
-                  .sort(([customerIdA], [customerIdB]) => {
-                    const customerA = getCustomerById(customerIdA);
-                    const customerB = getCustomerById(customerIdB);
-                    return (customerA?.name || "").localeCompare(customerB?.name || "");
-                  })
-                  .map(([customerId, customerInvoices]) => {
-                    const customer = getCustomerById(customerId);
-                    if (!customer) return null;
+                {invoicesByCustomer.size === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-sm text-gray-500 py-8">
+                      表示するデータがありません
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  Array.from(invoicesByCustomer.entries())
+                    .sort(([customerIdA], [customerIdB]) => {
+                      const customerA = getCustomerById(customerIdA);
+                      const customerB = getCustomerById(customerIdB);
+                      return (customerA?.name || "").localeCompare(customerB?.name || "");
+                    })
+                    .map(([customerId, customerInvoices]) => {
+                      const customer = getCustomerById(customerId);
+                      if (!customer) return null;
 
-                    // 顧客ごとの集計
-                    const customerInvoiceTotal = customerInvoices.reduce(
-                      (sum, inv) => sum + inv.amount,
-                      0
-                    );
-                    const customerPaidTotal = customerInvoices.reduce((sum, invoice) => {
-                      const invoicePayments = getPaymentsByInvoiceId(invoice.id);
-                      const monthlyPaidAmount = invoicePayments
-                        .filter((payment) => {
-                          const paymentDate = new Date(payment.payment_date);
-                          return (
-                            paymentDate.getFullYear() === year &&
-                            paymentDate.getMonth() + 1 === month
-                          );
-                        })
-                        .reduce((sum, p) => sum + p.amount, 0);
-                      return sum + monthlyPaidAmount;
-                    }, 0);
-                    const customerRemaining = customerInvoiceTotal - customerPaidTotal;
+                      // 顧客ごとの集計
+                      const customerInvoiceTotal = customerInvoices.reduce(
+                        (sum, inv) => sum + inv.amount,
+                        0
+                      );
+                      const customerPaidTotal = customerInvoices.reduce((sum, invoice) => {
+                        const invoicePayments = getPaymentsByInvoiceId(invoice.id);
+                        const monthlyPaidAmount = invoicePayments
+                          .filter((payment) => {
+                            const paymentDate = new Date(payment.payment_date);
+                            return (
+                              paymentDate.getFullYear() === year &&
+                              paymentDate.getMonth() + 1 === month
+                            );
+                          })
+                          .reduce((sum, p) => sum + p.amount, 0);
+                        return sum + monthlyPaidAmount;
+                      }, 0);
+                      const customerRemaining = customerInvoiceTotal - customerPaidTotal;
 
-                    return (
-                      <TableRow
-                        key={customerId}
-                        className="hover:bg-gray-50/50 transition-colors"
-                      >
-                        <TableCell className="font-medium text-xs md:text-sm whitespace-nowrap">
-                          <Link
-                            href={`/customers/${customerId}`}
-                            className="text-blue-600 hover:text-blue-700 hover:underline"
-                          >
-                            {customer.name}
-                          </Link>
-                        </TableCell>
-                        <TableCell className="text-xs md:text-sm whitespace-nowrap">{customerInvoices.length}件</TableCell>
-                        <TableCell className="text-xs md:text-sm whitespace-nowrap">{formatCurrency(customerInvoiceTotal)}</TableCell>
-                        <TableCell className="font-semibold text-green-600 text-xs md:text-sm whitespace-nowrap">
-                          {formatCurrency(customerPaidTotal)}
-                        </TableCell>
-                        <TableCell className="text-xs md:text-sm whitespace-nowrap">
-                          {customerRemaining > 0 ? (
-                            <span className="font-semibold text-orange-600">
-                              {formatCurrency(customerRemaining)}
-                            </span>
-                          ) : (
-                            <span className="text-gray-400">-</span>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                      return (
+                        <TableRow
+                          key={customerId}
+                          className="hover:bg-gray-50/50 transition-colors"
+                        >
+                          <TableCell className="font-medium text-xs md:text-sm whitespace-nowrap">
+                            <Link
+                              href={`/customers/${customerId}`}
+                              className="text-blue-600 hover:text-blue-700 hover:underline"
+                            >
+                              {customer.name}
+                            </Link>
+                          </TableCell>
+                          <TableCell className="text-xs md:text-sm whitespace-nowrap">{customerInvoices.length}件</TableCell>
+                          <TableCell className="text-xs md:text-sm whitespace-nowrap">{formatCurrency(customerInvoiceTotal)}</TableCell>
+                          <TableCell className="font-semibold text-green-600 text-xs md:text-sm whitespace-nowrap">
+                            {formatCurrency(customerPaidTotal)}
+                          </TableCell>
+                          <TableCell className="text-xs md:text-sm whitespace-nowrap">
+                            {customerRemaining > 0 ? (
+                              <span className="font-semibold text-orange-600">
+                                {formatCurrency(customerRemaining)}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                )}
               </TableBody>
             </Table>
           </CardContent>

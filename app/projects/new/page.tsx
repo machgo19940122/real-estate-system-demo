@@ -1,15 +1,29 @@
 "use client";
 
+import { useState } from "react";
 import { AppLayout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { customers, properties, staff } from "@/src/data/mock";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { CustomerCombobox } from "@/components/customer-combobox";
+import { PropertyCombobox } from "@/components/property-combobox";
 
 export default function NewProjectPage() {
+  const [customerId, setCustomerId] = useState("");
+  const [propertyId, setPropertyId] = useState("");
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!customerId) {
+      alert("顧客を選択してください");
+      return;
+    }
+    if (!propertyId) {
+      alert("物件を選択してください");
+      return;
+    }
     alert("新規案件登録機能（ダミー）");
   };
 
@@ -55,36 +69,14 @@ export default function NewProjectPage() {
                   <label htmlFor="customer" className="text-sm font-medium text-gray-700">
                     顧客 <span className="text-red-500">*</span>
                   </label>
-                  <select
-                    id="customer"
-                    required
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white"
-                  >
-                    <option value="">選択してください</option>
-                    {customers.map((customer) => (
-                      <option key={customer.id} value={customer.id}>
-                        {customer.name}
-                      </option>
-                    ))}
-                  </select>
+                  <CustomerCombobox customers={customers} value={customerId} onChange={setCustomerId} />
                 </div>
 
                 <div className="space-y-2">
                   <label htmlFor="property" className="text-sm font-medium text-gray-700">
                     物件 <span className="text-red-500">*</span>
                   </label>
-                  <select
-                    id="property"
-                    required
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white"
-                  >
-                    <option value="">選択してください</option>
-                    {properties.map((property) => (
-                      <option key={property.id} value={property.id}>
-                        {property.name}
-                      </option>
-                    ))}
-                  </select>
+                  <PropertyCombobox properties={properties} value={propertyId} onChange={setPropertyId} />
                 </div>
 
                 <div className="space-y-2">

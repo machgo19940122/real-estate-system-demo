@@ -9,6 +9,8 @@ import { formatCurrency } from "@/lib/utils";
 import { ArrowLeft, Plus, X } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { CustomerCombobox } from "@/components/customer-combobox";
+import { PropertyCombobox } from "@/components/property-combobox";
 
 const TAX_RATE = 0.1; // 消費税率10%
 
@@ -18,6 +20,8 @@ function NewEstimateForm() {
   const presetCustomerId = searchParams.get("customerId") ?? "";
   const presetRevenueCategory = searchParams.get("revenueCategory") ?? "";
 
+  const [customerId, setCustomerId] = useState(presetCustomerId);
+  const [propertyId, setPropertyId] = useState(presetPropertyId);
   const [note, setNote] = useState("");
   const [items, setItems] = useState([
     { id: 1, name: "", quantity: 1, unit_price: 0 },
@@ -25,6 +29,10 @@ function NewEstimateForm() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!customerId) {
+      alert("顧客を選択してください");
+      return;
+    }
     alert("新規見積登録機能（ダミー）\n備考: " + (note.trim() || "-"));
   };
 
@@ -92,20 +100,7 @@ function NewEstimateForm() {
                   <label htmlFor="customer" className="text-sm font-medium text-gray-700">
                     顧客 <span className="text-red-500">*</span>
                   </label>
-                  <select
-                    id="customer"
-                    name="customer"
-                    required
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white"
-                    defaultValue={presetCustomerId}
-                  >
-                    <option value="">選択してください</option>
-                    {customers.map((customer) => (
-                      <option key={customer.id} value={customer.id}>
-                        {customer.name}
-                      </option>
-                    ))}
-                  </select>
+                  <CustomerCombobox customers={customers} value={customerId} onChange={setCustomerId} />
                 </div>
 
                 {/* 区分 */}
@@ -154,19 +149,7 @@ function NewEstimateForm() {
                   <label htmlFor="property" className="text-sm font-medium text-gray-700">
                     物件（任意）
                   </label>
-                  <select
-                    id="property"
-                    name="property"
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white"
-                    defaultValue={presetPropertyId}
-                  >
-                    <option value="">選択してください</option>
-                    {properties.map((property) => (
-                      <option key={property.id} value={property.id}>
-                        {property.name}
-                      </option>
-                    ))}
-                  </select>
+                  <PropertyCombobox properties={properties} value={propertyId} onChange={setPropertyId} />
                 </div>
               </div>
 

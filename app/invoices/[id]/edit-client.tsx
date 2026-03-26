@@ -3,9 +3,11 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Save, X, Pencil, Trash2, Receipt } from "lucide-react";
+import { Plus, Save, X, Pencil, Trash2, Receipt, AlertCircle } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { type Invoice, type InvoiceItem, type RevenueCategory, type PaymentStatus } from "@/src/data/mock";
+import { InvoicePdfClient } from "./pdf-client";
+import { ReceiptClient } from "./receipt-client";
 
 const TAX_RATE = 0.1;
 
@@ -17,12 +19,14 @@ export function InvoiceEditClient({
   propertyName,
   paymentStatus,
   totalPaid,
+  isOverdue,
 }: {
   initialInvoice: Invoice;
   customerName?: string;
   propertyName?: string;
   paymentStatus: PaymentStatus;
   totalPaid: number;
+  isOverdue?: boolean;
 }) {
   const [invoice, setInvoice] = useState<Invoice>(initialInvoice);
   const [isEditing, setIsEditing] = useState(false);
@@ -121,28 +125,51 @@ export function InvoiceEditClient({
   return (
     <Card className="border-0 shadow-lg">
       <CardHeader className="border-b">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="flex items-center gap-2">
             <Receipt className="h-5 w-5 text-blue-600" />
             請求情報・請求明細
+            {isOverdue && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 text-red-700 px-2 py-0.5 text-xs font-medium border border-red-200">
+                <AlertCircle className="h-3.5 w-3.5" />
+                支払期限超過（{formatDate(invoice.due_date)}）
+              </span>
+            )}
           </CardTitle>
-          {!isEditing ? (
-            <Button onClick={startEdit} variant="outline" size="sm">
-              <Pencil className="h-4 w-4 mr-2" />
-              編集
-            </Button>
-          ) : (
-            <div className="flex items-center gap-2">
-              <Button onClick={cancelEdit} variant="outline" size="sm">
-                <X className="h-4 w-4 mr-2" />
-                キャンセル
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+            {!isEditing && (
+              <>
+                <InvoicePdfClient invoiceNumber={invoice.invoice_number} size="sm" />
+                <ReceiptClient
+                  invoiceId={invoice.id}
+                  invoiceAmount={invoice.amount}
+                  totalPaid={totalPaid}
+                  size="sm"
+                />
+              </>
+            )}
+            {!isEditing ? (
+              <Button onClick={startEdit} variant="outline" size="sm">
+                <Pencil className="h-4 w-4 mr-2" />
+                編集
               </Button>
-              <Button onClick={save} size="sm">
-                <Save className="h-4 w-4 mr-2" />
-                更新
-              </Button>
-            </div>
-          )}
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button onClick={cancelEdit} variant="outline" size="sm">
+                  <X className="h-4 w-4 mr-2" />
+                  キャンセル
+                </Button>
+                <Button
+                  onClick={save}
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  更新
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="pt-6 space-y-6">

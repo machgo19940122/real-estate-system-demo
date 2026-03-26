@@ -7,12 +7,13 @@ import {
   LayoutDashboard,
   Users,
   Building2,
-  FolderKanban,
   FileText,
   Receipt,
   UserCircle,
   CreditCard,
   BarChart3,
+  Landmark,
+  Send,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -23,9 +24,12 @@ const navigation = [
   { name: "見積一覧", href: "/estimates", icon: FileText },
   { name: "請求一覧", href: "/invoices", icon: Receipt },
   { name: "入金管理", href: "/payments", icon: CreditCard },
+  { name: "総合振込", href: "/transfers", icon: Send },
+  { name: "振込元口座マスタ", href: "/company-bank-accounts", icon: Landmark },
+  { name: "振込先マスタ", href: "/payees", icon: Landmark },
+  { name: "担当者一覧", href: "/staff", icon: UserCircle },
   { name: "集計", href: "/reports", icon: BarChart3 },
   { name: "担当者別集計", href: "/reports/staff", icon: BarChart3 },
-  { name: "担当者一覧", href: "/staff", icon: UserCircle },
 ];
 
 export function Sidebar({ onClose }: { onClose?: () => void }) {

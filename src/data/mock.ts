@@ -693,3 +693,150 @@ export const monthlySummaries: MonthlySummary[] = [
   { id: 4, year: 2025, month: 3, category: "仲介料", amount: 0, invoice_count: 0, created_at: "2025-03-31", is_closed: false },
 ];
 
+// =========================
+// 総合振込（全銀）デモ用
+// =========================
+
+export type BankAccountType = "普通" | "当座";
+
+export interface CompanyBankAccount {
+  id: number;
+  bank_name: string;
+  /** 4桁 */
+  bank_code: string;
+  /** 15バイト想定（半角カナ推奨） */
+  bank_name_kana?: string;
+  /** 3桁 */
+  branch_code: string;
+  /** 15バイト想定（半角カナ推奨） */
+  branch_name_kana?: string;
+  account_type: BankAccountType;
+  /** 7桁（ゼロ埋め含む） */
+  account_number: string;
+  /** 40バイト想定（半角カナ推奨） */
+  account_name_kana: string;
+  /** 10桁（銀行指定想定） */
+  client_code: string;
+}
+
+export interface Payee {
+  id: number;
+  name: string;
+  bank_code: string;
+  bank_name_kana?: string;
+  branch_code: string;
+  branch_name_kana?: string;
+  account_type: BankAccountType;
+  account_number: string;
+  account_name_kana: string;
+  memo?: string;
+  is_active: boolean;
+  created_at: string; // YYYY-MM-DD
+}
+
+export type TransferBatchStatus = "draft" | "confirmed" | "exported";
+
+export interface TransferBatch {
+  id: number;
+  /** 表示用バッチ番号（未設定の既存データは ID から生成して表示） */
+  batch_number?: string;
+  company_bank_account_id: number;
+  transfer_date: string; // YYYY-MM-DD
+  status: TransferBatchStatus;
+  total_count: number;
+  total_amount: number;
+  created_at: string; // YYYY-MM-DD
+  created_by: string;
+  exported_at?: string; // YYYY-MM-DD
+  file_name?: string;
+}
+
+export interface TransferBatchItem {
+  id: number;
+  batch_id: number;
+  payee_id: number;
+  amount: number;
+  /** 摘要（全銀のEDI/摘要の厳密対応はデモでは省略） */
+  description_kana: string;
+  // 出力再現のため、口座情報はスナップショットとして保持
+  bank_code: string;
+  bank_name_kana?: string;
+  branch_code: string;
+  branch_name_kana?: string;
+  account_type: BankAccountType;
+  account_number: string;
+  account_name_kana: string;
+}
+
+// 振込元（自社口座）：福岡銀行・西日本シティ銀行（コードはダミー）
+export const companyBankAccounts: CompanyBankAccount[] = [
+  {
+    id: 1,
+    bank_name: "福岡銀行",
+    bank_code: "0177",
+    bank_name_kana: "ﾌｸｵｶ",
+    branch_code: "001",
+    branch_name_kana: "ﾎﾝﾃﾝ",
+    account_type: "普通",
+    account_number: "1234567",
+    account_name_kana: "ｶﾌﾞ)ﾃﾞﾓﾌﾄﾞｳｻﾝ",
+    client_code: "0001234567",
+  },
+  {
+    id: 2,
+    bank_name: "西日本シティ銀行",
+    bank_code: "0190",
+    bank_name_kana: "ﾆｼﾆﾎﾝｼﾃｲ",
+    branch_code: "101",
+    branch_name_kana: "ﾃﾝｼﾞﾝ",
+    account_type: "普通",
+    account_number: "7654321",
+    account_name_kana: "ｶﾌﾞ)ﾃﾞﾓﾌﾄﾞｳｻﾝ",
+    client_code: "0007654321",
+  },
+];
+
+export const payeesSeed: Payee[] = [
+  {
+    id: 1,
+    name: "株式会社 建設丸（外注）",
+    bank_code: "0177",
+    bank_name_kana: "ﾌｸｵｶ",
+    branch_code: "201",
+    branch_name_kana: "ﾊｶﾀ",
+    account_type: "普通",
+    account_number: "0001234",
+    account_name_kana: "ｶﾌﾞ)ｹﾝｾﾂﾏﾙ",
+    memo: "リフォーム外注費",
+    is_active: true,
+    created_at: "2026-03-01",
+  },
+  {
+    id: 2,
+    name: "山田電気工事（外注）",
+    bank_code: "0190",
+    bank_name_kana: "ﾆｼﾆﾎﾝｼﾃｲ",
+    branch_code: "301",
+    branch_name_kana: "ﾖｶﾞ",
+    account_type: "当座",
+    account_number: "1230000",
+    account_name_kana: "ﾔﾏﾀﾞﾃﾞﾝｷｺｳｼﾞ",
+    memo: "電気工事",
+    is_active: true,
+    created_at: "2026-03-05",
+  },
+  {
+    id: 3,
+    name: "株式会社 仕入先サンプル",
+    bank_code: "0177",
+    bank_name_kana: "ﾌｸｵｶ",
+    branch_code: "105",
+    branch_name_kana: "ﾅｶｽ",
+    account_type: "普通",
+    account_number: "5555555",
+    account_name_kana: "ｶﾌﾞ)ｼｲﾚｻｷ",
+    memo: "材料費",
+    is_active: true,
+    created_at: "2026-03-10",
+  },
+];

@@ -3,10 +3,17 @@
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 
-export function InvoicePdfClient({ invoiceNumber }: { invoiceNumber: string }) {
+export function InvoicePdfClient({
+  invoiceNumber,
+  size = "default",
+}: {
+  invoiceNumber: string;
+  size?: "default" | "sm";
+}) {
   return (
     <Button
       variant="outline"
+      size={size}
       onClick={() => {
         alert(`請求書発行（PDF / ダミー）: ${invoiceNumber}`);
       }}

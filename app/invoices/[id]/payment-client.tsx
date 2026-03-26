@@ -111,6 +111,7 @@ export function PaymentClient({
               onClick={() => setIsModalOpen(true)}
               disabled={remainingAmount <= 0}
               size="sm"
+              className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
             >
               <Plus className="h-4 w-4 mr-2" />
               入金登録
@@ -402,7 +403,10 @@ export function PaymentClient({
                   >
                     キャンセル
                   </Button>
-                  <Button type="submit" className="flex-1">
+                  <Button
+                    type="submit"
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                  >
                     更新
                   </Button>
                 </div>

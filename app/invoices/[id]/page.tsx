@@ -11,12 +11,10 @@ import {
   calculateInvoiceStatus,
 } from "@/src/data/mock";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { ArrowLeft, Calendar, AlertCircle } from "lucide-react";
+import { ArrowLeft, Calendar } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PaymentClient } from "./payment-client";
-import { ReceiptClient } from "./receipt-client";
-import { InvoicePdfClient } from "./pdf-client";
 import { InvoiceEditClient } from "./edit-client";
 
 export default async function InvoiceDetailPage({
@@ -58,35 +56,13 @@ export default async function InvoiceDetailPage({
           </div>
         </div>
 
-        {isOverdue && (
-          <Card className="border-0 shadow-lg bg-red-50 border-red-200">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="h-5 w-5 text-red-600" />
-                <div>
-                  <p className="font-semibold text-red-900">支払期限を過ぎています</p>
-                  <p className="text-sm text-red-700">
-                    支払期限: {formatDate(invoice.due_date)}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        <div className="flex justify-end">
-          <div className="flex items-center gap-2">
-            <InvoicePdfClient invoiceNumber={invoice.invoice_number} />
-            <ReceiptClient invoiceId={invoice.id} invoiceAmount={invoice.amount} totalPaid={totalPaid} />
-          </div>
-        </div>
-
         <InvoiceEditClient
           initialInvoice={invoice}
           customerName={customer?.name}
           propertyName={property?.name}
           paymentStatus={currentStatus}
           totalPaid={totalPaid}
+          isOverdue={isOverdue}
         />
 
         {/* 入金管理 */}

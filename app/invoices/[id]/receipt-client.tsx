@@ -17,12 +17,14 @@ interface ReceiptClientProps {
   invoiceId: number;
   invoiceAmount: number;
   totalPaid: number;
+  size?: "default" | "sm";
 }
 
 export function ReceiptClient({
   invoiceId,
   invoiceAmount,
   totalPaid,
+  size = "default",
 }: ReceiptClientProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -63,6 +65,8 @@ export function ReceiptClient({
   return (
     <>
       <Button
+        type="button"
+        size={size}
         onClick={handleOpen}
         className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg hover:shadow-xl transition-all duration-200"
       >

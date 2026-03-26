@@ -122,7 +122,11 @@ export function EstimateEditClient({
                 <X className="h-4 w-4 mr-2" />
                 キャンセル
               </Button>
-              <Button onClick={save} size="sm">
+              <Button
+                onClick={save}
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
                 <Save className="h-4 w-4 mr-2" />
                 更新
               </Button>

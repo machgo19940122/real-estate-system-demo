@@ -77,7 +77,7 @@ export default function InvoicesPage() {
             <p className="text-gray-600 mt-2">すべての請求を管理します</p>
           </div>
           <Link href="/invoices/new">
-            <Button>
+            <Button className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 font-semibold">
               <Plus className="h-4 w-4 mr-2" />
               新規請求登録
             </Button>

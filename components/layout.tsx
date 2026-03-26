@@ -77,7 +77,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 <Menu className="h-5 w-5" />
               )}
             </Button>
-            <h2 className="text-lg font-semibold">不動産見積・請求システム</h2>
           </div>
         </div>
 

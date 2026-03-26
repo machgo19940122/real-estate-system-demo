@@ -43,7 +43,7 @@ export default function CustomersPage() {
             <p className="text-gray-600 mt-2">すべての顧客を管理します</p>
           </div>
           <Link href="/customers/new">
-            <Button>
+            <Button className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 font-semibold">
               <Plus className="h-4 w-4 mr-2" />
               新規顧客追加
             </Button>

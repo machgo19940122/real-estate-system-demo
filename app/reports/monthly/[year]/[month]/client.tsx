@@ -173,26 +173,26 @@ export function MonthlyReportDetailClient({
   const selectionSummary = useMemo(() => {
     let amount = 0;
     let invoiceCount = 0;
-    const names: string[] = [];
+    const selectedCategories: RevenueCategory[] = [];
     for (const cat of ALL_CATEGORIES) {
       if (!sectionIncluded[cat]) continue;
       amount += categoryTotals.totals[cat];
       invoiceCount += categoryTotals.counts[cat];
-      names.push(cat);
+      selectedCategories.push(cat);
     }
     const allOn = ALL_CATEGORIES.every((c) => sectionIncluded[c]);
     const summaryTitle = allOn
       ? `${periodLabel} 総合計`
-      : names.length === 0
+      : selectedCategories.length === 0
         ? `${periodLabel} 合計`
-        : `${periodLabel} 選択中の合計（${names.join("・")}）`;
+        : `${periodLabel} 選択中の合計`;
     const hint =
-      names.length === 0
+      selectedCategories.length === 0
         ? "区分を1つ以上選択してください"
         : allOn
           ? `${monthlyInvoices.length}件の請求から集計（全区分）`
           : `選択した区分の入金合計（該当請求 ${invoiceCount} 件）`;
-    return { amount, title: summaryTitle, hint, allOn };
+    return { amount, title: summaryTitle, hint, allOn, selectedCategories };
   }, [sectionIncluded, categoryTotals, periodLabel, monthlyInvoices.length]);
 
   const selectedCategories = useMemo(() => {
@@ -306,9 +306,32 @@ export function MonthlyReportDetailClient({
           <div className="bg-gradient-to-br from-indigo-50/90 to-white px-5 sm:px-6 pt-5 pb-5 border-b border-gray-100">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <p className="text-xs font-medium text-gray-500 leading-snug">
-                  {selectionSummary.title}
-                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-xs font-medium text-gray-500 leading-snug">
+                    {selectionSummary.title}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {selectionSummary.allOn ? (
+                      <span className="inline-flex items-center rounded-full border border-gray-200 bg-white px-2 py-0.5 text-[11px] font-medium text-gray-700">
+                        全区分
+                      </span>
+                    ) : selectionSummary.selectedCategories.length === 0 ? (
+                      <span className="inline-flex items-center rounded-full border border-gray-200 bg-white px-2 py-0.5 text-[11px] font-medium text-gray-700">
+                        未選択
+                      </span>
+                    ) : (
+                      selectionSummary.selectedCategories.map((cat) => (
+                        <span
+                          key={cat}
+                          className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-0.5 text-[11px] font-medium text-gray-700"
+                        >
+                          <span className={`size-1.5 rounded-full ${categoryAccent[cat]}`} aria-hidden />
+                          {categoryLabels[cat]}
+                        </span>
+                      ))
+                    )}
+                  </div>
+                </div>
                 <p className="text-3xl sm:text-4xl font-bold text-gray-900 mt-1 tabular-nums tracking-tight">
                   {formatCurrency(selectionSummary.amount)}
                 </p>
@@ -331,36 +354,6 @@ export function MonthlyReportDetailClient({
                 <span className="text-sm font-medium text-gray-700 whitespace-nowrap">
                   含める区分
                 </span>
-                {!isFilterOpen && (
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    {isAllSelected ? (
-                      <Badge variant="secondary" className="h-6">
-                        全区分
-                      </Badge>
-                    ) : isNoneSelected ? (
-                      <Badge variant="destructive" className="h-6">
-                        未選択
-                      </Badge>
-                    ) : (
-                      <>
-                        {selectedCategories.slice(0, 3).map((c) => (
-                          <Badge
-                            key={c}
-                            variant="outline"
-                            className={`h-6 ${categoryChipClass[c as RevenueCategory]}`}
-                          >
-                            {c}
-                          </Badge>
-                        ))}
-                        {selectedCategories.length > 3 && (
-                          <Badge variant="outline" className="h-6">
-                            +{selectedCategories.length - 3}
-                          </Badge>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
               </div>
               <span className="inline-flex items-center gap-1 text-xs text-gray-500 whitespace-nowrap">
                 {isFilterOpen ? "閉じる" : "開く"}

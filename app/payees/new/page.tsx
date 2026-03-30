@@ -8,6 +8,7 @@ import { ArrowLeft, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { addPayee } from "@/lib/transfer-store";
+import { INSURANCE_DEDUCTION_RATE } from "@/lib/payee-transfer-amount";
 import type { BankAccountType } from "@/src/data/mock";
 
 const INPUT =
@@ -25,6 +26,7 @@ export default function NewPayeePage() {
   const [accountNumber, setAccountNumber] = useState("");
   const [accountNameKana, setAccountNameKana] = useState("");
   const [memo, setMemo] = useState("");
+  const [insuranceDeductionEnabled, setInsuranceDeductionEnabled] = useState(false);
 
   const canSubmit = useMemo(() => {
     const hasRequired =
@@ -50,6 +52,7 @@ export default function NewPayeePage() {
       account_number: accountNumber.trim(),
       account_name_kana: accountNameKana.trim(),
       memo: memo.trim() || undefined,
+      insurance_deduction_enabled: insuranceDeductionEnabled || undefined,
     });
 
     router.push("/payees");
@@ -190,6 +193,27 @@ export default function NewPayeePage() {
                     onChange={(e) => setMemo(e.target.value)}
                     placeholder="材料費、外注費 など"
                   />
+                </div>
+
+                <div className="md:col-span-2 rounded-lg border border-gray-200 bg-gray-50/80 p-4 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <input
+                      id="insurance_deduction"
+                      type="checkbox"
+                      checked={insuranceDeductionEnabled}
+                      onChange={(e) => setInsuranceDeductionEnabled(e.target.checked)}
+                      className="mt-1 size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <div className="min-w-0">
+                      <label htmlFor="insurance_deduction" className="text-sm font-medium text-gray-800">
+                        保険として差し引いて振り込み
+                      </label>
+                      <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+                        チェックした振込先のみ、総合振込で入力した金額を請求額とみなし、⌊請求額×
+                        {INSURANCE_DEDUCTION_RATE}⌋（切り捨て）を保険として差し引いたうえで振込します。率は全社固定です。
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
 

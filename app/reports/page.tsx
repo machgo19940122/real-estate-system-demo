@@ -11,7 +11,10 @@ import {
   getTotalPaidAmount,
   type RevenueCategory,
 } from "@/src/data/mock";
+import { summarizeReportSalesCostMargin, getInvoicePaidInRange } from "@/lib/report-sales-cost-summary";
 import { formatCurrency } from "@/lib/utils";
+import { formatProfitMarginRate } from "@/lib/invoice-cost-metrics";
+import { ReportSalesSummaryStats } from "@/components/report-sales-summary-stats";
 import { Calendar, TrendingUp, FileText, Calculator } from "lucide-react";
 import Link from "next/link";
 
@@ -99,12 +102,22 @@ export default function ReportsPage() {
     });
   }, [range, range?.start, range?.endExclusive]);
 
-  // 売上区分別に集計
+  // 売上区分別に集計（入金・件数・原価・利益率）
   const categoryTotals = useMemo(() => {
+    const emptyTotals = { 新築: 0, リフォーム: 0, 土地: 0, 仲介料: 0 } as Record<RevenueCategory, number>;
+    const emptyMargin = {
+      新築: undefined,
+      リフォーム: undefined,
+      土地: undefined,
+      仲介料: undefined,
+    } as Record<RevenueCategory, number | undefined>;
+
     if (!range) {
       return {
-        totals: { 新築: 0, リフォーム: 0, 土地: 0, 仲介料: 0 } as Record<RevenueCategory, number>,
-        counts: { 新築: 0, リフォーム: 0, 土地: 0, 仲介料: 0 } as Record<RevenueCategory, number>,
+        totals: { ...emptyTotals },
+        counts: { ...emptyTotals },
+        costTotals: { ...emptyTotals },
+        profitMarginRates: { ...emptyMargin },
       };
     }
     const isInRange = (dateStr: string) => {
@@ -123,6 +136,12 @@ export default function ReportsPage() {
       土地: 0,
       仲介料: 0,
     };
+    const costTotals: Record<RevenueCategory, number> = {
+      新築: 0,
+      リフォーム: 0,
+      土地: 0,
+      仲介料: 0,
+    };
 
     periodInvoices.forEach((invoice) => {
       const category = getInvoiceRevenueCategory(invoice);
@@ -133,11 +152,37 @@ export default function ReportsPage() {
         .reduce((sum, p) => sum + p.amount, 0);
 
       totals[category] += periodPaidAmount;
-      if (periodPaidAmount > 0) counts[category]++;
+      if (periodPaidAmount > 0) {
+        counts[category]++;
+        costTotals[category] += invoice.cost_amount_excluding_tax ?? 0;
+      }
     });
 
-    return { totals, counts };
+    const profitMarginRates = {} as Record<RevenueCategory, number | undefined>;
+    for (const cat of ALL_CATEGORIES) {
+      const sales = totals[cat];
+      profitMarginRates[cat] =
+        sales > 0 ? (sales - costTotals[cat]) / sales : undefined;
+    }
+
+    return { totals, counts, costTotals, profitMarginRates };
   }, [periodInvoices, range]);
+
+  const salesCostSummary = useMemo(() => {
+    if (!range) {
+      return {
+        totalSales: 0,
+        totalCost: 0,
+        profitMarginRate: undefined as number | undefined,
+      };
+    }
+    return summarizeReportSalesCostMargin({
+      periodInvoices,
+      sectionIncluded,
+      resolveCategory: (inv) => getInvoiceRevenueCategory(inv),
+      getPeriodPaidAmount: (inv) => getInvoicePaidInRange(inv, range.start, range.endExclusive),
+    });
+  }, [periodInvoices, sectionIncluded, range]);
 
   const categoryLabels: Record<RevenueCategory, string> = {
     新築: "新築",
@@ -446,10 +491,12 @@ export default function ReportsPage() {
                         )}
                       </div>
                     </div>
-                    <p className="text-3xl sm:text-4xl font-bold text-gray-900 mt-1 tabular-nums tracking-tight">
-                      {formatCurrency(selectionSummary.amount)}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-2">{selectionSummary.hint}</p>
+                    <ReportSalesSummaryStats
+                      totalSales={salesCostSummary.totalSales}
+                      totalCost={salesCostSummary.totalCost}
+                      profitMarginRate={salesCostSummary.profitMarginRate}
+                    />
+                    <p className="text-xs text-gray-500 mt-3">{selectionSummary.hint}</p>
                   </>
                 )}
               </div>
@@ -496,7 +543,7 @@ export default function ReportsPage() {
             <ul className="divide-y divide-gray-100">
               {ALL_CATEGORIES.map((category) => (
                 <li key={category}>
-                  <label className="flex items-center gap-3 px-5 sm:px-6 py-3 cursor-pointer hover:bg-gray-50/80 transition-colors">
+                  <label className="flex flex-wrap items-center gap-3 px-5 sm:px-6 py-3 cursor-pointer hover:bg-gray-50/80 transition-colors">
                     <input
                       type="checkbox"
                       checked={sectionIncluded[category]}
@@ -516,18 +563,36 @@ export default function ReportsPage() {
                     <span className="text-sm font-medium text-gray-900 w-16 sm:w-20 shrink-0">
                       {categoryLabels[category]}
                     </span>
-                    <span className="text-xs text-gray-500 flex-1 min-w-0">
+                    <span className="text-xs text-gray-500 flex-1 min-w-[4rem]">
                       {categoryTotals.counts[category]}件
                     </span>
-                    <span className="text-sm font-semibold text-gray-900 tabular-nums shrink-0">
-                      {formatCurrency(categoryTotals.totals[category])}
-                    </span>
+                    <div className="flex flex-wrap items-baseline justify-end gap-x-4 gap-y-1 w-full sm:w-auto sm:ml-auto shrink-0">
+                      <span className="text-xs tabular-nums">
+                        <span className="text-gray-400 mr-1">売上</span>
+                        <span className="font-semibold text-gray-900">
+                          {formatCurrency(categoryTotals.totals[category])}
+                        </span>
+                      </span>
+                      <span className="text-xs tabular-nums">
+                        <span className="text-gray-400 mr-1">原価</span>
+                        <span className="font-medium text-gray-800">
+                          {formatCurrency(categoryTotals.costTotals[category])}
+                        </span>
+                      </span>
+                      <span className="text-xs tabular-nums">
+                        <span className="text-gray-400 mr-1">利益率</span>
+                        <span className="font-medium text-gray-800">
+                          {formatProfitMarginRate(categoryTotals.profitMarginRates[category])}
+                        </span>
+                      </span>
+                    </div>
                   </label>
                 </li>
               ))}
             </ul>
             <p className="px-5 sm:px-6 py-3 text-xs text-gray-500 border-t border-gray-100 bg-white">
-              チェックした区分の入金額を合計します。初期は全区分オン（総合計）です。
+              チェックした区分の入金額・原価（税抜）・利益率を表示します。利益率は (売上 − 原価) ÷
+              売上（期間内入金ベース）。初期は全区分オン（総合計）です。
             </p>
           </CardContent>
         </Card>

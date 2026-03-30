@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { AppLayout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -14,11 +14,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { customers } from "@/src/data/mock";
 import { formatDate } from "@/lib/utils";
-import { Plus, Search, X } from "lucide-react";
+import { Plus, Printer, Search, X } from "lucide-react";
 import Link from "next/link";
+import { CustomerEnvelopeLabelModal } from "@/components/customer-envelope-label-modal";
 
 export default function CustomersPage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [labelModalOpen, setLabelModalOpen] = useState(false);
+  const selectAllRef = useRef<HTMLInputElement>(null);
 
   const filteredCustomers = useMemo(() => {
     if (!searchQuery.trim()) return customers;
@@ -32,22 +36,90 @@ export default function CustomersPage() {
     );
   }, [searchQuery]);
 
+  const filteredIds = useMemo(
+    () => filteredCustomers.map((c) => c.id),
+    [filteredCustomers]
+  );
+
+  const allFilteredSelected =
+    filteredIds.length > 0 && filteredIds.every((id) => selectedIds.includes(id));
+  const someFilteredSelected =
+    filteredIds.some((id) => selectedIds.includes(id)) && !allFilteredSelected;
+
+  useEffect(() => {
+    const el = selectAllRef.current;
+    if (el) el.indeterminate = someFilteredSelected;
+  }, [someFilteredSelected]);
+
+  const toggleSelectAllFiltered = () => {
+    if (allFilteredSelected) {
+      setSelectedIds((prev) => prev.filter((id) => !filteredIds.includes(id)));
+    } else {
+      setSelectedIds((prev) => {
+        const next = [...prev];
+        for (const id of filteredIds) {
+          if (!next.includes(id)) next.push(id);
+        }
+        return next;
+      });
+    }
+  };
+
+  const toggleOne = (id: number) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const selectedCustomers = useMemo(
+    () =>
+      selectedIds
+        .map((id) => customers.find((c) => c.id === id))
+        .filter((c): c is (typeof customers)[number] => c != null),
+    [selectedIds]
+  );
+
+  const selectionCount = selectedIds.length;
+
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
               顧客一覧
             </h1>
             <p className="text-gray-600 mt-2">すべての顧客を管理します</p>
           </div>
-          <Link href="/customers/new">
-            <Button className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 font-semibold">
-              <Plus className="h-4 w-4 mr-2" />
-              新規顧客追加
-            </Button>
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            {selectionCount > 0 && (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setLabelModalOpen(true)}
+                  className="font-medium"
+                >
+                  <Printer className="h-4 w-4 mr-2" />
+                  封筒ラベル印刷（{selectionCount}件）
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setSelectedIds([])}
+                  className="text-gray-600"
+                >
+                  選択解除
+                </Button>
+              </>
+            )}
+            <Link href="/customers/new">
+              <Button className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 font-semibold">
+                <Plus className="h-4 w-4 mr-2" />
+                新規顧客追加
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* 検索バー */}
@@ -71,10 +143,29 @@ export default function CustomersPage() {
                 </button>
               )}
             </div>
-            {searchQuery && (
-              <p className="text-sm text-gray-500 mt-2">
-                {filteredCustomers.length}件の結果が見つかりました
-              </p>
+            {(searchQuery || filteredCustomers.length > 0) && (
+              <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-gray-500">
+                {searchQuery && (
+                  <span>{filteredCustomers.length}件の結果が見つかりました</span>
+                )}
+                {filteredCustomers.length > 0 && !allFilteredSelected && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedIds((prev) => {
+                        const next = [...prev];
+                        for (const id of filteredIds) {
+                          if (!next.includes(id)) next.push(id);
+                        }
+                        return next;
+                      })
+                    }
+                    className="text-blue-600 hover:text-blue-800 hover:underline"
+                  >
+                    表示中の{filteredCustomers.length}件をすべて選択
+                  </button>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>
@@ -87,6 +178,16 @@ export default function CustomersPage() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-gray-50/50">
+                  <TableHead className="w-10 font-semibold">
+                    <input
+                      ref={selectAllRef}
+                      type="checkbox"
+                      checked={allFilteredSelected}
+                      onChange={toggleSelectAllFiltered}
+                      className="h-4 w-4 rounded border-gray-300"
+                      aria-label="表示中の顧客をすべて選択"
+                    />
+                  </TableHead>
                   <TableHead className="font-semibold">顧客名</TableHead>
                   <TableHead className="font-semibold">電話番号</TableHead>
                   <TableHead className="font-semibold">メールアドレス</TableHead>
@@ -101,6 +202,15 @@ export default function CustomersPage() {
                     key={customer.id}
                     className="hover:bg-gray-50/50 transition-colors cursor-pointer"
                   >
+                    <TableCell className="w-10" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(customer.id)}
+                        onChange={() => toggleOne(customer.id)}
+                        className="h-4 w-4 rounded border-gray-300"
+                        aria-label={`${customer.name}を選択`}
+                      />
+                    </TableCell>
                     <TableCell className="font-medium">
                       <Link
                         href={`/customers/${customer.id}`}
@@ -121,7 +231,7 @@ export default function CustomersPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                       検索結果が見つかりませんでした
                     </TableCell>
                   </TableRow>
@@ -130,6 +240,12 @@ export default function CustomersPage() {
             </Table>
           </CardContent>
         </Card>
+
+        <CustomerEnvelopeLabelModal
+          open={labelModalOpen}
+          onOpenChange={setLabelModalOpen}
+          customers={selectedCustomers}
+        />
       </div>
     </AppLayout>
   );

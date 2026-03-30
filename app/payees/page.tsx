@@ -95,6 +95,9 @@ export default function PayeesPage() {
                   <TableHead className="font-semibold">種目</TableHead>
                   <TableHead className="font-semibold">口座番号</TableHead>
                   <TableHead className="font-semibold">名義（カナ）</TableHead>
+                  <TableHead className="font-semibold min-w-[8rem]">
+                    保険として差し引いて振り込み
+                  </TableHead>
                   <TableHead className="font-semibold">登録日</TableHead>
                 </TableRow>
               </TableHeader>
@@ -119,12 +122,21 @@ export default function PayeesPage() {
                       <TableCell>{p.account_type}</TableCell>
                       <TableCell className="tabular-nums">{p.account_number}</TableCell>
                       <TableCell className="text-sm text-gray-700">{p.account_name_kana}</TableCell>
+                      <TableCell className="text-sm">
+                        {p.insurance_deduction_enabled ? (
+                          <span className="text-amber-800 bg-amber-50 px-2 py-0.5 rounded text-xs font-medium">
+                            差引あり
+                          </span>
+                        ) : (
+                          <span className="text-gray-500 text-xs">差引なし</span>
+                        )}
+                      </TableCell>
                       <TableCell>{p.created_at ? formatDate(p.created_at) : "-"}</TableCell>
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                       表示するデータがありません
                     </TableCell>
                   </TableRow>

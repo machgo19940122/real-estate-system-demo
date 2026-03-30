@@ -14,6 +14,7 @@ import {
   getCompanyBankAccounts,
   loadPayees,
 } from "@/lib/transfer-store";
+import { isInsuranceDeductionEnabled, previewTransferAmount } from "@/lib/payee-transfer-amount";
 import { staff } from "@/src/data/mock";
 
 const INPUT =
@@ -47,12 +48,20 @@ export default function NewTransferBatchPage() {
     { payee_id: String(payees[0]?.id ?? ""), amount: "", description_kana: "" },
   ]);
 
+  const payeeById = useMemo(() => new Map(payees.map((p) => [p.id, p])), [payees]);
+
   const totals = useMemo(() => {
-    const amounts = rows.map((r) => Number(r.amount) || 0);
-    const totalAmount = amounts.reduce((s, v) => s + v, 0);
-    const totalCount = rows.filter((r) => (Number(r.amount) || 0) > 0 && r.payee_id).length;
-    return { totalAmount, totalCount };
-  }, [rows]);
+    let totalTransfer = 0;
+    let totalCount = 0;
+    for (const r of rows) {
+      const gross = Number(r.amount) || 0;
+      if (gross <= 0 || !r.payee_id) continue;
+      totalCount += 1;
+      const p = payeeById.get(Number(r.payee_id));
+      totalTransfer += previewTransferAmount(p, gross);
+    }
+    return { totalTransfer, totalCount };
+  }, [rows, payeeById]);
 
   const canSubmit = useMemo(() => {
     if (!companyAccountId) return false;
@@ -177,7 +186,10 @@ export default function NewTransferBatchPage() {
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold text-gray-900">振込明細</p>
-                    <p className="text-xs text-gray-500 mt-1">振込先・金額・摘要（カナ）を入力します</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      コンボで「差引あり」の振込先は金額を請求額として入力します（⌊×0.003⌋
+                      を切り捨てて保険として差し引いた額が振込額になります）。
+                    </p>
                   </div>
                   <Button type="button" variant="outline" onClick={addRow}>
                     <Plus className="h-4 w-4 mr-2" />
@@ -205,7 +217,12 @@ export default function NewTransferBatchPage() {
                         />
                       </div>
                       <div className="md:col-span-3 space-y-2">
-                        <label className="text-xs font-medium text-gray-700">金額</label>
+                        <label className="text-xs font-medium text-gray-700">
+                          {(() => {
+                            const p = payeeById.get(Number(r.payee_id));
+                            return p && isInsuranceDeductionEnabled(p) ? "請求額" : "金額（振込額）";
+                          })()}
+                        </label>
                         <input
                           className={INPUT}
                           inputMode="numeric"
@@ -213,6 +230,17 @@ export default function NewTransferBatchPage() {
                           onChange={(e) => updateRow(idx, { amount: e.target.value })}
                           placeholder="10000"
                         />
+                        {(() => {
+                          const p = payeeById.get(Number(r.payee_id));
+                          const g = Number(r.amount) || 0;
+                          if (!p || !isInsuranceDeductionEnabled(p) || g <= 0) return null;
+                          const net = previewTransferAmount(p, g);
+                          return (
+                            <p className="text-[11px] text-gray-500 tabular-nums">
+                              振込額 {formatCurrency(net)}（保険として差し引き {formatCurrency(g - net)}）
+                            </p>
+                          );
+                        })()}
                       </div>
                       <div className="md:col-span-3 space-y-2">
                         <label className="text-xs font-medium text-gray-700">摘要（カナ）</label>
@@ -244,7 +272,7 @@ export default function NewTransferBatchPage() {
                 <div className="text-sm text-gray-700 flex items-center gap-2">
                   <Calculator className="h-4 w-4 text-gray-500" />
                   <span className="font-medium tabular-nums">
-                    合計 {totals.totalCount}件 / {formatCurrency(totals.totalAmount)}
+                    合計 {totals.totalCount}件 / 振込合計 {formatCurrency(totals.totalTransfer)}
                   </span>
                 </div>
                 <Button

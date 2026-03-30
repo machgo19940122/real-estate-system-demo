@@ -9,7 +9,13 @@ import type { Payee } from "@/src/data/mock";
 const INPUT_CLASS =
   "w-full h-11 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white";
 
-type PayeeOption = { value: string; label: string };
+type PayeeOption = {
+  value: string;
+  /** 入力欄・読み上げ用（名前＋差引の有無） */
+  label: string;
+  name: string;
+  insuranceOn: boolean;
+};
 
 export function PayeeCombobox({
   payees,
@@ -30,7 +36,16 @@ export function PayeeCombobox({
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const options = useMemo<PayeeOption[]>(
-    () => payees.map((p) => ({ value: String(p.id), label: p.name })),
+    () =>
+      payees.map((p) => {
+        const insuranceOn = Boolean(p.insurance_deduction_enabled);
+        return {
+          value: String(p.id),
+          name: p.name,
+          insuranceOn,
+          label: `${p.name}（${insuranceOn ? "差引あり" : "差引なし"}）`,
+        };
+      }),
     [payees]
   );
 
@@ -105,7 +120,7 @@ export function PayeeCombobox({
 
       <Combobox.Portal>
         <Combobox.Positioner className="z-50">
-          <Combobox.Popup className="mt-2 w-[var(--anchor-width)] max-h-72 overflow-auto rounded-xl border border-gray-200 bg-white shadow-xl">
+          <Combobox.Popup className="mt-2 min-w-[var(--anchor-width)] w-max max-w-[min(90vw,28rem)] max-h-72 overflow-auto rounded-xl border border-gray-200 bg-white shadow-xl">
             {filtered.length === 0 ? (
               <div className="px-3 py-2 text-sm text-gray-500">該当する振込先がありません</div>
             ) : (
@@ -121,14 +136,22 @@ export function PayeeCombobox({
                     )}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-blue-600">
+                      <span className="text-blue-600 shrink-0 w-4 flex justify-center">
                         <Combobox.ItemIndicator>
                           <Check className="h-4 w-4" />
                         </Combobox.ItemIndicator>
                       </span>
-                      <div className="min-w-0 flex-1 font-medium text-gray-900 truncate">
-                        {o.label}
-                      </div>
+                      <div className="min-w-0 flex-1 font-medium text-gray-900 truncate">{o.name}</div>
+                      <span
+                        className={cn(
+                          "shrink-0 text-xs font-medium px-2 py-0.5 rounded tabular-nums",
+                          o.insuranceOn
+                            ? "bg-amber-50 text-amber-900 border border-amber-200/80"
+                            : "bg-gray-100 text-gray-600 border border-gray-200/80"
+                        )}
+                      >
+                        {o.insuranceOn ? "差引あり" : "差引なし"}
+                      </span>
                     </div>
                   </Combobox.Item>
                 ))}

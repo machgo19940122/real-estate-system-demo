@@ -5,7 +5,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Save, X, Pencil, Trash2, Receipt, AlertCircle } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { type Invoice, type InvoiceItem, type RevenueCategory, type PaymentStatus } from "@/src/data/mock";
+import {
+  type Invoice,
+  type InvoiceItem,
+  type RevenueCategory,
+  type PaymentStatus,
+  updateInvoice,
+} from "@/src/data/mock";
+import {
+  formatProfitMarginRate,
+  invoiceCostPatchFromForm,
+  previewProfitMarginRate,
+} from "@/lib/invoice-cost-metrics";
 import { InvoicePdfClient } from "./pdf-client";
 import { ReceiptClient } from "./receipt-client";
 
@@ -38,6 +49,11 @@ export function InvoiceEditClient({
   const [draftManualStatus, setDraftManualStatus] = useState<"有" | "無し">(initialInvoice.status);
   const [draftNote, setDraftNote] = useState(initialInvoice.note ?? "");
   const [draftItems, setDraftItems] = useState<DraftItem[]>(initialInvoice.items?.map((it) => ({ ...it })) ?? []);
+  const [draftCostStr, setDraftCostStr] = useState(() =>
+    initialInvoice.cost_amount_excluding_tax != null
+      ? String(initialInvoice.cost_amount_excluding_tax)
+      : ""
+  );
 
   const { subtotal, tax, total } = useMemo(() => {
     const sub = draftItems.reduce((sum, it) => {
@@ -55,12 +71,27 @@ export function InvoiceEditClient({
     return { viewSubtotal: sub, viewTax: taxAmount, viewTotal: sub + taxAmount };
   }, [invoice.items]);
 
+  const editProfitMarginPreview = useMemo(
+    () => previewProfitMarginRate(subtotal, draftCostStr),
+    [subtotal, draftCostStr]
+  );
+
+  const viewProfitMarginRate = useMemo(() => {
+    if (invoice.profit_margin_rate != null) return invoice.profit_margin_rate;
+    const c = invoice.cost_amount_excluding_tax;
+    if (c != null && viewSubtotal > 0) return (viewSubtotal - c) / viewSubtotal;
+    return undefined;
+  }, [invoice.profit_margin_rate, invoice.cost_amount_excluding_tax, viewSubtotal]);
+
   const startEdit = () => {
     setDraftDueDate(invoice.due_date);
     setDraftCategory((invoice.revenue_category as RevenueCategory | undefined) ?? "");
     setDraftManualStatus(invoice.status);
     setDraftNote(invoice.note ?? "");
     setDraftItems(invoice.items?.map((it) => ({ ...it })) ?? []);
+    setDraftCostStr(
+      invoice.cost_amount_excluding_tax != null ? String(invoice.cost_amount_excluding_tax) : ""
+    );
     setIsEditing(true);
   };
 
@@ -70,6 +101,9 @@ export function InvoiceEditClient({
     setDraftManualStatus(invoice.status);
     setDraftNote(invoice.note ?? "");
     setDraftItems(invoice.items?.map((it) => ({ ...it })) ?? []);
+    setDraftCostStr(
+      invoice.cost_amount_excluding_tax != null ? String(invoice.cost_amount_excluding_tax) : ""
+    );
     setIsEditing(false);
   };
 
@@ -85,18 +119,17 @@ export function InvoiceEditClient({
         amount: qty * unit,
       };
     });
-    const next: Invoice = {
-      ...invoice,
+    const costPatch = invoiceCostPatchFromForm(subtotal, draftCostStr);
+    const saved = updateInvoice(invoice.id, {
       due_date: draftDueDate,
       revenue_category: (draftCategory || undefined) as RevenueCategory | undefined,
       status: draftManualStatus,
       note: draftNote.trim() ? draftNote.trim() : undefined,
       items,
-      amount: items.length > 0 ? total : invoice.amount,
-    };
-    setInvoice(next);
+      ...costPatch,
+    });
+    setInvoice(saved);
     setIsEditing(false);
-    alert("請求を更新しました（デモ / 保存処理は未実装）");
   };
 
   const addRow = () => {
@@ -245,6 +278,38 @@ export function InvoiceEditClient({
               <div>
                 <p className="text-xs text-gray-500 mb-1">残額</p>
                 <p className="font-semibold text-sm md:text-base text-gray-900">{formatCurrency(remaining)}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-gray-100">
+              <div>
+                <p className="text-xs text-gray-500 mb-1">原価額（税抜）</p>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={draftCostStr}
+                    onChange={(e) => setDraftCostStr(e.target.value)}
+                    placeholder="例: 300000"
+                    className="mt-1 w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white tabular-nums"
+                  />
+                ) : (
+                  <p className="font-semibold text-sm md:text-base text-gray-900 tabular-nums">
+                    {invoice.cost_amount_excluding_tax != null
+                      ? formatCurrency(invoice.cost_amount_excluding_tax)
+                      : "—"}
+                  </p>
+                )}
+                <p className="text-[11px] text-gray-500 mt-1">税抜売上（明細小計）に対して入力します</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 mb-1">利益率（税抜売上基準）</p>
+                <p className="font-semibold text-sm md:text-base text-gray-900 tabular-nums">
+                  {formatProfitMarginRate(
+                    isEditing ? editProfitMarginPreview : viewProfitMarginRate
+                  )}
+                </p>
+                <p className="text-[11px] text-gray-500 mt-1">(税抜売上 − 原価) ÷ 税抜売上</p>
               </div>
             </div>
           </div>

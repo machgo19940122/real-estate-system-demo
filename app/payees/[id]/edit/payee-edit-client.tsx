@@ -8,6 +8,7 @@ import { ArrowLeft, Save } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { BankAccountType } from "@/src/data/mock";
+import { INSURANCE_DEDUCTION_RATE } from "@/lib/payee-transfer-amount";
 import { getPayeeById, updatePayee } from "@/lib/transfer-store";
 
 const INPUT =
@@ -27,6 +28,9 @@ export function PayeeEditClient({ id }: { id: number }) {
   const [accountNameKana, setAccountNameKana] = useState(initial?.account_name_kana ?? "");
   const [memo, setMemo] = useState(initial?.memo ?? "");
   const [isActive, setIsActive] = useState(initial?.is_active ?? true);
+  const [insuranceDeductionEnabled, setInsuranceDeductionEnabled] = useState(
+    Boolean(initial?.insurance_deduction_enabled)
+  );
 
   const canSubmit = useMemo(() => {
     const hasRequired =
@@ -52,6 +56,7 @@ export function PayeeEditClient({ id }: { id: number }) {
       account_name_kana: accountNameKana.trim(),
       memo: memo.trim() || undefined,
       is_active: isActive,
+      insurance_deduction_enabled: insuranceDeductionEnabled || undefined,
     });
     router.push("/payees");
   };
@@ -172,6 +177,26 @@ export function PayeeEditClient({ id }: { id: number }) {
                 <div className="space-y-2 md:col-span-2">
                   <label className="text-sm font-medium text-gray-700">メモ</label>
                   <input className={INPUT} value={memo} onChange={(e) => setMemo(e.target.value)} />
+                </div>
+
+                <div className="md:col-span-2 rounded-lg border border-gray-200 bg-gray-50/80 p-4 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <input
+                      id="insurance_deduction"
+                      type="checkbox"
+                      checked={insuranceDeductionEnabled}
+                      onChange={(e) => setInsuranceDeductionEnabled(e.target.checked)}
+                      className="mt-1 size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <div className="min-w-0">
+                      <label htmlFor="insurance_deduction" className="text-sm font-medium text-gray-800">
+                        保険として差し引いて振り込み
+                      </label>
+                      <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+                        ⌊請求額×{INSURANCE_DEDUCTION_RATE}⌋（切り捨て）を保険として差し引いて振り込む場合のみチェックしてください。率は固定です。
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2 md:col-span-2">

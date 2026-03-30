@@ -20,9 +20,12 @@ import {
   getCustomerById,
   getPaymentsByInvoiceId,
   getTotalPaidAmount,
+  type Invoice,
   type RevenueCategory,
 } from "@/src/data/mock";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { summarizeReportSalesCostMargin, getInvoicePaidInMonth } from "@/lib/report-sales-cost-summary";
+import { ReportSalesSummaryStats } from "@/components/report-sales-summary-stats";
 import { ArrowLeft, Download, Lock, CheckCircle, TrendingUp, ChevronDown, ChevronUp } from "lucide-react";
 import Link from "next/link";
 
@@ -195,6 +198,20 @@ export function MonthlyReportDetailClient({
     return { amount, title: summaryTitle, hint, allOn, selectedCategories };
   }, [sectionIncluded, categoryTotals, periodLabel, monthlyInvoices.length]);
 
+  const salesCostSummary = useMemo(() => {
+    return summarizeReportSalesCostMargin({
+      periodInvoices: monthlyInvoices,
+      sectionIncluded,
+      resolveCategory: (inv) => {
+        const pid = (inv as Invoice).project_id;
+        if (pid == null) return null;
+        const project = getProjectById(pid);
+        return project ? getRevenueCategory(project.type) : null;
+      },
+      getPeriodPaidAmount: (inv) => getInvoicePaidInMonth(inv, year, month),
+    });
+  }, [monthlyInvoices, sectionIncluded, year, month]);
+
   const selectedCategories = useMemo(() => {
     return ALL_CATEGORIES.filter((c) => sectionIncluded[c]);
   }, [sectionIncluded]);
@@ -332,10 +349,12 @@ export function MonthlyReportDetailClient({
                     )}
                   </div>
                 </div>
-                <p className="text-3xl sm:text-4xl font-bold text-gray-900 mt-1 tabular-nums tracking-tight">
-                  {formatCurrency(selectionSummary.amount)}
-                </p>
-                <p className="text-xs text-gray-500 mt-2">{selectionSummary.hint}</p>
+                <ReportSalesSummaryStats
+                  totalSales={salesCostSummary.totalSales}
+                  totalCost={salesCostSummary.totalCost}
+                  profitMarginRate={salesCostSummary.profitMarginRate}
+                />
+                <p className="text-xs text-gray-500 mt-3">{selectionSummary.hint}</p>
               </div>
               <div className="rounded-xl bg-indigo-600 p-2.5 text-white shadow-sm shrink-0">
                 <TrendingUp className="h-5 w-5" />

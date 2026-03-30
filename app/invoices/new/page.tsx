@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { customers, properties, estimates } from "@/src/data/mock";
 import { formatCurrency } from "@/lib/utils";
+import { formatProfitMarginRate, previewProfitMarginRate } from "@/lib/invoice-cost-metrics";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -32,6 +33,7 @@ function NewInvoiceForm() {
   const [propertyId, setPropertyId] = useState(presetPropertyId);
   const [note, setNote] = useState("");
   const [items, setItems] = useState<InvoiceItemForm[]>([]);
+  const [costExcludingTaxStr, setCostExcludingTaxStr] = useState("");
 
   // 見積から明細を引き継ぎ
   useEffect(() => {
@@ -62,6 +64,11 @@ function NewInvoiceForm() {
       total: sub + taxAmount,
     };
   }, [items]);
+
+  const newFormProfitMargin = useMemo(
+    () => previewProfitMarginRate(subtotal, costExcludingTaxStr),
+    [subtotal, costExcludingTaxStr]
+  );
 
   const handleAddItem = () => {
     setItems((prev) => [
@@ -105,11 +112,16 @@ function NewInvoiceForm() {
       alert("顧客を選択してください");
       return;
     }
+    const costLine =
+      costExcludingTaxStr.trim() !== ""
+        ? `\n原価額（税抜）: ${costExcludingTaxStr.trim()}\n利益率: ${formatProfitMarginRate(newFormProfitMargin)}`
+        : "";
     alert(
       "新規請求登録機能（ダミー）\n備考: " +
         (note.trim() || "-") +
         "\n請求明細行数: " +
-        items.length
+        items.length +
+        costLine
     );
   };
 
@@ -324,6 +336,34 @@ function NewInvoiceForm() {
                     <div className="flex justify-between text-base font-semibold pt-2 border-t border-gray-200">
                       <span>請求合計</span>
                       <span>{formatCurrency(total)}</span>
+                    </div>
+                    <div className="pt-4 mt-2 border-t border-gray-200 space-y-3">
+                      <div className="space-y-1">
+                        <label
+                          htmlFor="cost_ex_tax"
+                          className="text-sm font-medium text-gray-700"
+                        >
+                          原価額（税抜）
+                        </label>
+                        <input
+                          id="cost_ex_tax"
+                          type="text"
+                          inputMode="numeric"
+                          value={costExcludingTaxStr}
+                          onChange={(e) => setCostExcludingTaxStr(e.target.value)}
+                          placeholder="未入力可"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white tabular-nums"
+                        />
+                        <p className="text-[11px] text-gray-500">
+                          明細の税抜合計に対する原価。入力すると利益率を表示します。
+                        </p>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">利益率（税抜売上基準）</span>
+                        <span className="font-medium tabular-nums">
+                          {formatProfitMarginRate(newFormProfitMargin)}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 )}

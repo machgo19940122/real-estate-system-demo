@@ -1,14 +1,16 @@
 import {
   companyBankAccounts,
-  payeesSeed,
+  payees,
   type CompanyBankAccount,
   type Payee,
   type TransferBatch,
   type TransferBatchItem,
 } from "@/src/data/mock";
+import { transferAmountFromBillingGross } from "@/lib/payee-transfer-amount";
 
-const PAYEES_KEY = "demo_payees_v1";
 const COMPANY_ACCOUNTS_KEY = "demo_company_bank_accounts_v1";
+/** 旧デモ: 振込先を localStorage に保存していた名残を削除 */
+const LEGACY_PAYEES_KEY = "demo_payees_v1";
 const BATCHES_KEY = "demo_transfer_batches_v1";
 const ITEMS_KEY = "demo_transfer_batch_items_v1";
 const BATCHES_SEEDED_KEY = "demo_transfer_batches_seeded_v1";
@@ -115,6 +117,17 @@ function safeParseJSON<T>(raw: string | null): T | null {
   }
 }
 
+let legacyPayeesStorageCleared = false;
+function clearLegacyPayeesStorage() {
+  if (typeof window === "undefined" || legacyPayeesStorageCleared) return;
+  legacyPayeesStorageCleared = true;
+  try {
+    window.localStorage.removeItem(LEGACY_PAYEES_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 function nextId(items: { id: number }[]): number {
   return (items.reduce((max, it) => Math.max(max, it.id), 0) || 0) + 1;
 }
@@ -169,15 +182,15 @@ export function deleteCompanyBankAccount(id: number) {
 }
 
 export function loadPayees(): Payee[] {
-  if (typeof window === "undefined") return payeesSeed;
-  const stored = safeParseJSON<Payee[]>(window.localStorage.getItem(PAYEES_KEY));
-  if (stored && Array.isArray(stored) && stored.length > 0) return stored;
-  window.localStorage.setItem(PAYEES_KEY, JSON.stringify(payeesSeed));
-  return payeesSeed;
+  clearLegacyPayeesStorage();
+  return payees;
 }
 
 export function savePayees(next: Payee[]) {
-  window.localStorage.setItem(PAYEES_KEY, JSON.stringify(next));
+  payees.length = 0;
+  for (const p of next) {
+    payees.push({ ...p });
+  }
 }
 
 export function addPayee(input: Omit<Payee, "id" | "created_at" | "is_active"> & { is_active?: boolean }): Payee {
@@ -260,11 +273,14 @@ export function createTransferBatch(params: {
     if (!payee) {
       throw new Error(`Payee not found: ${src.payee_id}`);
     }
+    const billingGross = Number(src.amount) || 0;
+    const { transferAmount, billingGrossAmount } = transferAmountFromBillingGross(payee, billingGross);
     return {
       id: nextId(allItems) + idx,
       batch_id: id,
       payee_id: payee.id,
-      amount: Number(src.amount) || 0,
+      amount: transferAmount,
+      billing_gross_amount: billingGrossAmount,
       description_kana: src.description_kana ?? "",
       bank_code: payee.bank_code,
       bank_name_kana: payee.bank_name_kana,
@@ -332,11 +348,14 @@ export function replaceBatchItems(params: {
   const created: TransferBatchItem[] = params.items.map((src, idx) => {
     const payee = payees.find((p) => p.id === src.payee_id);
     if (!payee) throw new Error(`Payee not found: ${src.payee_id}`);
+    const billingGross = Number(src.amount) || 0;
+    const { transferAmount, billingGrossAmount } = transferAmountFromBillingGross(payee, billingGross);
     return {
       id: startId + idx,
       batch_id: params.batchId,
       payee_id: payee.id,
-      amount: Number(src.amount) || 0,
+      amount: transferAmount,
+      billing_gross_amount: billingGrossAmount,
       description_kana: src.description_kana ?? "",
       bank_code: payee.bank_code,
       bank_name_kana: payee.bank_name_kana,

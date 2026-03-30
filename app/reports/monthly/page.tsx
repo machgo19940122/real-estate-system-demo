@@ -10,9 +10,12 @@ import {
   getRevenueCategory,
   getPaymentsByInvoiceId,
   getTotalPaidAmount,
+  type Invoice,
   type RevenueCategory,
 } from "@/src/data/mock";
+import { summarizeReportSalesCostMargin, getInvoicePaidInRange } from "@/lib/report-sales-cost-summary";
 import { formatCurrency } from "@/lib/utils";
+import { ReportSalesSummaryStats } from "@/components/report-sales-summary-stats";
 import { Calendar, TrendingUp, FileText, Calculator } from "lucide-react";
 import Link from "next/link";
 
@@ -148,6 +151,27 @@ export default function MonthlyReportsPage() {
 
     return { totals, counts: categoryCounts };
   }, [periodInvoices, range]);
+
+  const salesCostSummary = useMemo(() => {
+    if (!range) {
+      return {
+        totalSales: 0,
+        totalCost: 0,
+        profitMarginRate: undefined as number | undefined,
+      };
+    }
+    return summarizeReportSalesCostMargin({
+      periodInvoices,
+      sectionIncluded,
+      resolveCategory: (inv) => {
+        const pid = (inv as Invoice).project_id;
+        if (pid == null) return null;
+        const project = getProjectById(pid);
+        return project ? getRevenueCategory(project.type) : null;
+      },
+      getPeriodPaidAmount: (inv) => getInvoicePaidInRange(inv, range.start, range.endExclusive),
+    });
+  }, [periodInvoices, sectionIncluded, range]);
 
   const categoryLabels: Record<RevenueCategory, string> = {
     新築: "新築",
@@ -459,10 +483,12 @@ export default function MonthlyReportsPage() {
                         )}
                       </div>
                     </div>
-                    <p className="text-3xl sm:text-4xl font-bold text-gray-900 mt-1 tabular-nums tracking-tight">
-                      {formatCurrency(selectionSummary.amount)}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-2">{selectionSummary.hint}</p>
+                    <ReportSalesSummaryStats
+                      totalSales={salesCostSummary.totalSales}
+                      totalCost={salesCostSummary.totalCost}
+                      profitMarginRate={salesCostSummary.profitMarginRate}
+                    />
+                    <p className="text-xs text-gray-500 mt-3">{selectionSummary.hint}</p>
                   </>
                 )}
               </div>

@@ -8,6 +8,7 @@ import { ArrowLeft, Landmark, Pencil, Save, X } from "lucide-react";
 import Link from "next/link";
 import type { BankAccountType, Payee } from "@/src/data/mock";
 import { formatDate } from "@/lib/utils";
+import { INSURANCE_DEDUCTION_RATE } from "@/lib/payee-transfer-amount";
 import { getPayeeById, updatePayee } from "@/lib/transfer-store";
 
 const INPUT =
@@ -54,6 +55,7 @@ export function PayeeDetailClient({ id }: { id: number }) {
       account_name_kana: draft.account_name_kana.trim(),
       memo: draft.memo?.trim() || undefined,
       is_active: Boolean(draft.is_active),
+      insurance_deduction_enabled: draft.insurance_deduction_enabled || undefined,
     });
     setPayee(next);
     setDraft(next);
@@ -256,6 +258,32 @@ export function PayeeDetailClient({ id }: { id: number }) {
                   />
                 ) : (
                   <p className="font-medium mt-1">{payee.memo || "-"}</p>
+                )}
+              </div>
+
+              <div className="md:col-span-2 rounded-lg border border-gray-200 bg-gray-50/80 p-4">
+                <p className="text-sm text-gray-500 mb-2">
+                  保険として差し引いて振り込み（率 {INSURANCE_DEDUCTION_RATE} 固定）
+                </p>
+                {isEditing ? (
+                  <div className="flex items-start gap-2">
+                    <input
+                      id="insurance_deduction"
+                      type="checkbox"
+                      checked={Boolean(draft.insurance_deduction_enabled)}
+                      onChange={(e) =>
+                        setDraft({ ...draft, insurance_deduction_enabled: e.target.checked })
+                      }
+                      className="mt-1 size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <label htmlFor="insurance_deduction" className="text-sm text-gray-800">
+                      この振込先で保険として差し引いて振り込みを行う（⌊請求額×率⌋を切り捨て）
+                    </label>
+                  </div>
+                ) : (
+                  <p className="font-medium text-gray-900">
+                    {payee.insurance_deduction_enabled ? "差引あり" : "差引なし"}
+                  </p>
                 )}
               </div>
 

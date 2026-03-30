@@ -87,6 +87,21 @@ export interface Invoice {
   status: InvoiceStatus;
   created_at: string;
   items?: InvoiceItem[];
+  /**
+   * 原価額（税抜・円）。
+   * 粗利・率の計算は税抜売上（明細の税抜金額の合計＝小計）に対して揃えるのが一般的。
+   */
+  cost_amount_excluding_tax?: number;
+  /**
+   * 原価率（税抜売上に対する原価の割合）。0〜1 の小数（例: 0.65 は 65%）。
+   * 税抜売上 > 0 のとき 原価額÷税抜売上 で算出して保持する想定。
+   */
+  cost_rate?: number;
+  /**
+   * 利益率（税抜売上に対する粗利益率）。0〜1 の小数（例: 0.35 は 35%）。
+   * 税抜売上 > 0 のとき (税抜売上−原価額)÷税抜売上 で算出して保持する想定。
+   */
+  profit_margin_rate?: number;
 }
 
 // 入金レコード（1つの請求に対して複数可能）
@@ -384,6 +399,9 @@ export const invoices: Invoice[] = [
     status: "有",
     created_at: "2025-03-07",
     revenue_category: "リフォーム",
+    cost_amount_excluding_tax: 300000,
+    cost_rate: 0.6,
+    profit_margin_rate: 0.4,
     items: [
       { id: 1, name: "内装リフォーム工事", quantity: 1, unit_price: 300000, amount: 300000 },
       { id: 2, name: "キッチン交換", quantity: 1, unit_price: 200000, amount: 200000 },
@@ -399,6 +417,9 @@ export const invoices: Invoice[] = [
     status: "無し",
     created_at: "2025-03-08",
     revenue_category: "新築",
+    cost_amount_excluding_tax: 150000000,
+    cost_rate: 150000000 / 180000000,
+    profit_margin_rate: 30000000 / 180000000,
     items: [{ id: 1, name: "新築戸建売買", quantity: 1, unit_price: 180000000, amount: 180000000 }],
   },
   {
@@ -410,6 +431,9 @@ export const invoices: Invoice[] = [
     status: "無し",
     created_at: "2025-03-12",
     revenue_category: "仲介料",
+    cost_amount_excluding_tax: 20000000,
+    cost_rate: 0.8,
+    profit_margin_rate: 0.2,
     items: [{ id: 1, name: "仲介手数料", quantity: 1, unit_price: 25000000, amount: 25000000 }],
   },
   {
@@ -421,6 +445,9 @@ export const invoices: Invoice[] = [
     status: "有",
     created_at: "2025-03-01",
     revenue_category: "土地",
+    cost_amount_excluding_tax: 310000000,
+    cost_rate: 310000000 / 350000000,
+    profit_margin_rate: 40000000 / 350000000,
     items: [{ id: 1, name: "中古マンション売買", quantity: 1, unit_price: 350000000, amount: 350000000 }],
   },
   {
@@ -432,6 +459,9 @@ export const invoices: Invoice[] = [
     status: "無し",
     created_at: "2025-03-16",
     revenue_category: "リフォーム",
+    cost_amount_excluding_tax: 520000,
+    cost_rate: 0.65,
+    profit_margin_rate: 0.35,
     items: [{ id: 1, name: "キッチンリフォーム工事", quantity: 1, unit_price: 800000, amount: 800000 }],
   },
   {
@@ -444,6 +474,9 @@ export const invoices: Invoice[] = [
     status: "有",
     created_at: "2026-02-15",
     revenue_category: "新築",
+    cost_amount_excluding_tax: 38000000,
+    cost_rate: 38000000 / 45000000,
+    profit_margin_rate: 7000000 / 45000000,
     items: [{ id: 1, name: "新築一戸建", quantity: 1, unit_price: 45000000, amount: 45000000 }],
   },
   {
@@ -455,6 +488,9 @@ export const invoices: Invoice[] = [
     status: "有",
     created_at: "2026-02-25",
     revenue_category: "リフォーム",
+    cost_amount_excluding_tax: 800000,
+    cost_rate: 800000 / 1200000,
+    profit_margin_rate: 400000 / 1200000,
     items: [{ id: 1, name: "オフィスリノベーション", quantity: 1, unit_price: 1200000, amount: 1200000 }],
   },
   {
@@ -466,6 +502,7 @@ export const invoices: Invoice[] = [
     status: "有",
     created_at: "2026-03-01",
     revenue_category: "土地",
+    // 原価未入力の例（担当者別一覧では「未入力」表示）
     items: [{ id: 1, name: "土地売買", quantity: 1, unit_price: 95000000, amount: 95000000 }],
   },
   {
@@ -477,6 +514,9 @@ export const invoices: Invoice[] = [
     status: "有",
     created_at: "2026-03-05",
     revenue_category: "仲介料",
+    cost_amount_excluding_tax: 12000000,
+    cost_rate: 12000000 / 18000000,
+    profit_margin_rate: 6000000 / 18000000,
     items: [{ id: 1, name: "仲介手数料", quantity: 1, unit_price: 18000000, amount: 18000000 }],
   },
   {
@@ -488,6 +528,9 @@ export const invoices: Invoice[] = [
     status: "無し",
     created_at: "2026-03-15",
     revenue_category: "仲介料",
+    cost_amount_excluding_tax: 8000000,
+    cost_rate: 8000000 / 12000000,
+    profit_margin_rate: 4000000 / 12000000,
     items: [{ id: 1, name: "土地仲介手数料", quantity: 1, unit_price: 12000000, amount: 12000000 }],
   },
 ];
@@ -732,6 +775,8 @@ export interface Payee {
   memo?: string;
   is_active: boolean;
   created_at: string; // YYYY-MM-DD
+  /** 総合振込で ⌊請求額×0.003⌋（切捨て）を保険として差し引いて振り込む（社内固定・振込先ごとに設定） */
+  insurance_deduction_enabled?: boolean;
 }
 
 export type TransferBatchStatus = "draft" | "confirmed" | "exported";
@@ -756,6 +801,8 @@ export interface TransferBatchItem {
   batch_id: number;
   payee_id: number;
   amount: number;
+  /** 保険として差し引く前の請求ベース金額（再編集時に二重に差し引かないため） */
+  billing_gross_amount?: number;
   /** 摘要（全銀のEDI/摘要の厳密対応はデモでは省略） */
   description_kana: string;
   // 出力再現のため、口座情報はスナップショットとして保持
@@ -796,7 +843,8 @@ export const companyBankAccounts: CompanyBankAccount[] = [
   },
 ];
 
-export const payeesSeed: Payee[] = [
+/** 振込先の初期データ（不変）。実行中は `payees` を更新する */
+const PAYEES_SEED: Payee[] = [
   {
     id: 1,
     name: "株式会社 建設丸（外注）",
@@ -839,4 +887,22 @@ export const payeesSeed: Payee[] = [
     is_active: true,
     created_at: "2026-03-10",
   },
+  {
+    id: 4,
+    name: "株式会社 リスク共有デモ（外注）",
+    bank_code: "0177",
+    bank_name_kana: "ﾌｸｵｶ",
+    branch_code: "088",
+    branch_name_kana: "ﾃﾝｼﾞﾝ",
+    account_type: "普通",
+    account_number: "9001001",
+    account_name_kana: "ｶﾌﾞ)ﾘｽｸｷｮｳﾕｳﾃﾞﾓ",
+    memo: "保険として差し引いて振り込みの例（0.3% 切捨て・率固定）",
+    is_active: true,
+    created_at: "2026-03-12",
+    insurance_deduction_enabled: true,
+  },
 ];
+
+/** デモ用振込先（メモリ上で更新。localStorage は使わない） */
+export const payees: Payee[] = PAYEES_SEED.map((p) => ({ ...p }));

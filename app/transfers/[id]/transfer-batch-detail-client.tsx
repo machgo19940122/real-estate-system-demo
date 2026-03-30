@@ -207,6 +207,12 @@ export function TransferBatchDetailClient({ id }: { id: number }) {
                         <div className="md:col-span-3 space-y-2">
                           <label className="text-xs font-medium text-gray-700">金額</label>
                           <p className="font-medium text-gray-900 tabular-nums">{formatCurrency(it.amount)}</p>
+                          {it.billing_gross_amount != null && it.billing_gross_amount !== it.amount && (
+                            <p className="text-[11px] text-gray-500 tabular-nums">
+                              請求額 {formatCurrency(it.billing_gross_amount)}（保険として差し引き{" "}
+                              {formatCurrency(it.billing_gross_amount - it.amount)}）
+                            </p>
+                          )}
                         </div>
                         <div className="md:col-span-4 space-y-2">
                           <label className="text-xs font-medium text-gray-700">摘要（カナ）</label>

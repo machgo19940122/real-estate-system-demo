@@ -27,6 +27,7 @@ export default function NewPayeePage() {
   const [accountNameKana, setAccountNameKana] = useState("");
   const [memo, setMemo] = useState("");
   const [insuranceDeductionEnabled, setInsuranceDeductionEnabled] = useState(false);
+  const [isActive, setIsActive] = useState(true);
 
   const canSubmit = useMemo(() => {
     const hasRequired =
@@ -53,6 +54,7 @@ export default function NewPayeePage() {
       account_name_kana: accountNameKana.trim(),
       memo: memo.trim() || undefined,
       insurance_deduction_enabled: insuranceDeductionEnabled || undefined,
+      is_active: isActive,
     });
 
     router.push("/payees");
@@ -213,6 +215,24 @@ export default function NewPayeePage() {
                         {INSURANCE_DEDUCTION_RATE}⌋（切り捨て）を保険として差し引いたうえで振込します。率は全社固定です。
                       </p>
                     </div>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2 md:col-span-2">
+                  <input
+                    id="is_active"
+                    type="checkbox"
+                    checked={isActive}
+                    onChange={(e) => setIsActive(e.target.checked)}
+                    className="mt-1 size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <div className="min-w-0">
+                    <label htmlFor="is_active" className="text-sm font-medium text-gray-700">
+                      有効
+                    </label>
+                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                      有効な振込先のみ、総合振込の振込先候補として表示されます。使用しなくなった振込先は有効チェックを外してください。
+                    </p>
                   </div>
                 </div>
               </div>

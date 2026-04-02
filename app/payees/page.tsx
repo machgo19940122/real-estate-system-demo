@@ -44,6 +44,9 @@ export default function PayeesPage() {
               振込先マスタ
             </h1>
             <p className="text-gray-600 mt-2">総合振込（全銀）で使用する振込先口座を管理します</p>
+            <p className="text-xs text-gray-500 mt-1">
+              「有効」は、総合振込の振込先候補として選択できる状態を指します。使用しなくなった振込先は有効チェックを外してください。
+            </p>
           </div>
           <div className="flex gap-2">
             <Link href="/payees/new">

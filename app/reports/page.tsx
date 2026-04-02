@@ -154,7 +154,7 @@ export default function ReportsPage() {
       totals[category] += periodPaidAmount;
       if (periodPaidAmount > 0) {
         counts[category]++;
-        costTotals[category] += invoice.cost_amount_excluding_tax ?? 0;
+        costTotals[category] += invoice.cost_amount_including_tax ?? invoice.cost_amount_excluding_tax ?? 0;
       }
     });
 
@@ -580,6 +580,14 @@ export default function ReportsPage() {
                         </span>
                       </span>
                       <span className="text-xs tabular-nums">
+                        <span className="text-gray-400 mr-1">利益</span>
+                        <span className="font-medium text-gray-800">
+                          {formatCurrency(
+                            categoryTotals.totals[category] - categoryTotals.costTotals[category]
+                          )}
+                        </span>
+                      </span>
+                      <span className="text-xs tabular-nums">
                         <span className="text-gray-400 mr-1">利益率</span>
                         <span className="font-medium text-gray-800">
                           {formatProfitMarginRate(categoryTotals.profitMarginRates[category])}
@@ -591,7 +599,7 @@ export default function ReportsPage() {
               ))}
             </ul>
             <p className="px-5 sm:px-6 py-3 text-xs text-gray-500 border-t border-gray-100 bg-white">
-              チェックした区分の入金額・原価（税抜）・利益率を表示します。利益率は (売上 − 原価) ÷
+              チェックした区分の入金額・原価（税込）・利益・利益率を表示します。利益率は (売上 − 原価) ÷
               売上（期間内入金ベース）。初期は全区分オン（総合計）です。
             </p>
           </CardContent>

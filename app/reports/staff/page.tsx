@@ -120,7 +120,7 @@ export default function StaffReportsPage() {
         let totalPaid = 0;
         let totalUnpaid = 0;
         let unpaidCount = 0;
-        let totalCostExTax = 0;
+        let totalCostInTax = 0;
         const invoicesInPeriod: typeof staffInvoices = [];
 
         staffInvoices.forEach((inv) => {
@@ -136,7 +136,7 @@ export default function StaffReportsPage() {
           invoicesInPeriod.push(inv);
           totalBilled += inv.amount;
           totalPaid += paidInPeriod;
-          totalCostExTax += inv.cost_amount_excluding_tax ?? 0;
+          totalCostInTax += inv.cost_amount_including_tax ?? inv.cost_amount_excluding_tax ?? 0;
           const remaining = inv.amount - getTotalPaidAmount(inv.id);
           totalUnpaid += remaining;
           const status = calculateInvoiceStatus(inv);
@@ -146,7 +146,7 @@ export default function StaffReportsPage() {
         });
 
         const profitMarginOnPaid =
-          totalPaid > 0 ? (totalPaid - totalCostExTax) / totalPaid : undefined;
+          totalPaid > 0 ? (totalPaid - totalCostInTax) / totalPaid : undefined;
 
         return {
           staff: s,
@@ -155,7 +155,7 @@ export default function StaffReportsPage() {
           totalPaid,
           totalUnpaid,
           unpaidCount,
-          totalCostExTax,
+          totalCostInTax,
           profitMarginOnPaid,
         };
       })
@@ -340,7 +340,7 @@ export default function StaffReportsPage() {
                   ? " · 全担当者"
                   : ` · ${staff.find((s) => String(s.id) === effectiveApplied.selectedStaffId)?.name ?? ""}`}
                 <span className="block mt-1 text-[11px] text-gray-400">
-                  原価は税抜。担当者別の利益率は (期間内入金合計 − 原価合計) ÷ 期間内入金合計（集計画面と同じ考え方）。
+                  原価は税込。担当者別の利益率は (期間内入金合計 − 原価合計) ÷ 期間内入金合計（集計画面と同じ考え方）。
                 </span>
               </p>
             )}
@@ -367,7 +367,10 @@ export default function StaffReportsPage() {
                     入金額合計
                   </TableHead>
                   <TableHead className="font-semibold text-xs md:text-sm whitespace-nowrap text-right">
-                    原価額（税抜）
+                    原価金額（税込）
+                  </TableHead>
+                  <TableHead className="font-semibold text-xs md:text-sm whitespace-nowrap text-right">
+                    利益額
                   </TableHead>
                   <TableHead className="font-semibold text-xs md:text-sm whitespace-nowrap text-right">
                     利益率
@@ -407,7 +410,10 @@ export default function StaffReportsPage() {
                       {formatCurrency(row.totalPaid)}
                     </TableCell>
                     <TableCell className="text-right text-xs md:text-sm tabular-nums">
-                      {formatCurrency(row.totalCostExTax)}
+                      {formatCurrency(row.totalCostInTax)}
+                    </TableCell>
+                    <TableCell className="text-right text-xs md:text-sm tabular-nums">
+                      {formatCurrency(row.totalPaid - row.totalCostInTax)}
                     </TableCell>
                     <TableCell className="text-right text-xs md:text-sm tabular-nums">
                       {formatProfitMarginRate(row.profitMarginOnPaid)}
@@ -432,7 +438,7 @@ export default function StaffReportsPage() {
               担当者別の請求一覧
             </CardTitle>
             <p className="text-xs text-gray-500 font-normal mt-1">
-              各行の利益率は税抜売上（明細合計）基準。請求詳細と同じ定義です。
+              各行の利益率は税込売上（請求合計）基準。請求詳細と同じ定義です。
             </p>
           </CardHeader>
           <CardContent className="p-0 overflow-x-auto">
@@ -460,7 +466,10 @@ export default function StaffReportsPage() {
                     入金額（期間内）
                   </TableHead>
                   <TableHead className="font-semibold text-xs md:text-sm whitespace-nowrap text-right">
-                    原価額（税抜）
+                    原価金額（税込）
+                  </TableHead>
+                  <TableHead className="font-semibold text-xs md:text-sm whitespace-nowrap text-right">
+                    利益額（期間内）
                   </TableHead>
                   <TableHead className="font-semibold text-xs md:text-sm whitespace-nowrap text-right">
                     利益率
@@ -493,6 +502,12 @@ export default function StaffReportsPage() {
                       (sum, p) => sum + p.amount,
                       0
                     );
+                    const invCost =
+                      inv.cost_amount_including_tax ??
+                      inv.cost_amount_excluding_tax ??
+                      undefined;
+                    const profitInPeriod =
+                      invCost != null ? paidInPeriod - invCost : undefined;
                     const lastPayment =
                       paymentsInPeriod[paymentsInPeriod.length - 1];
 
@@ -524,9 +539,14 @@ export default function StaffReportsPage() {
                           {formatCurrency(paidInPeriod)}
                         </TableCell>
                         <TableCell className="text-right text-xs md:text-sm tabular-nums">
-                          {inv.cost_amount_excluding_tax != null
-                            ? formatCurrency(inv.cost_amount_excluding_tax)
+                          {inv.cost_amount_including_tax != null
+                            ? formatCurrency(inv.cost_amount_including_tax)
+                            : inv.cost_amount_excluding_tax != null
+                              ? formatCurrency(inv.cost_amount_excluding_tax)
                             : "未入力"}
+                        </TableCell>
+                        <TableCell className="text-right text-xs md:text-sm tabular-nums">
+                          {profitInPeriod != null ? formatCurrency(profitInPeriod) : "—"}
                         </TableCell>
                         <TableCell className="text-right text-xs md:text-sm tabular-nums">
                           {formatProfitMarginRate(invoiceProfitMarginRateForDisplay(inv))}

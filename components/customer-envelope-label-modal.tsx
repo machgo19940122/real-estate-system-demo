@@ -54,6 +54,19 @@ function formatAddress(c: Customer): string {
   return t || "（住所未登録）";
 }
 
+function formatPostalCode(c: Customer): string | null {
+  const raw = c.postal_code?.trim();
+  if (raw) {
+    const m = /(\d{3})-?(\d{4})/.exec(raw);
+    if (m) return `〒${m[1]}-${m[2]}`;
+    return `〒${raw}`;
+  }
+  const addr = c.address?.trim() ?? "";
+  const m = /(\d{3})-?(\d{4})/.exec(addr);
+  if (m) return `〒${m[1]}-${m[2]}`;
+  return null;
+}
+
 export function CustomerEnvelopeLabelModal(props: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -193,6 +206,11 @@ export function CustomerEnvelopeLabelModal(props: {
                               className="customer-label-cell flex flex-col justify-center border border-dashed border-gray-200 px-[2mm] py-[1.5mm] print:border-0"
                             >
                               <p className="font-bold leading-tight print:text-[9pt]">{c.name}</p>
+                              {formatPostalCode(c) && (
+                                <p className="mt-0.5 leading-tight text-gray-800 print:text-[8pt]">
+                                  {formatPostalCode(c)}
+                                </p>
+                              )}
                               <p className="mt-0.5 whitespace-pre-wrap leading-snug text-gray-800 print:text-[8pt]">
                                 {formatAddress(c)}
                               </p>

@@ -158,7 +158,7 @@ export function MonthlyReportDetailClient({
         totals[cat] += monthlyPaidAmount;
         if (monthlyPaidAmount > 0) {
           counts[cat]++;
-          costTotals[cat] += invoice.cost_amount_excluding_tax ?? 0;
+          costTotals[cat] += invoice.cost_amount_including_tax ?? invoice.cost_amount_excluding_tax ?? 0;
         }
       });
     });
@@ -446,7 +446,7 @@ export function MonthlyReportDetailClient({
                       <span className="text-xs text-gray-500 flex-1 min-w-0">
                         {categoryTotals.counts[category]}件
                       </span>
-                      <div className="grid grid-cols-3 gap-3 items-end shrink-0">
+                      <div className="grid grid-cols-4 gap-3 items-end shrink-0">
                         <div className="text-right">
                           <p className="text-[10px] text-gray-500 leading-none">売上</p>
                           <p className="text-sm font-semibold text-gray-900 tabular-nums">
@@ -457,6 +457,14 @@ export function MonthlyReportDetailClient({
                           <p className="text-[10px] text-gray-500 leading-none">原価</p>
                           <p className="text-sm font-semibold text-gray-900 tabular-nums">
                             {formatCurrency(categoryTotals.costTotals[category])}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] text-gray-500 leading-none">利益</p>
+                          <p className="text-sm font-semibold text-gray-900 tabular-nums">
+                            {formatCurrency(
+                              categoryTotals.totals[category] - categoryTotals.costTotals[category]
+                            )}
                           </p>
                         </div>
                         <div className="text-right">
@@ -472,7 +480,7 @@ export function MonthlyReportDetailClient({
               </ul>
 
               <p className="px-5 sm:px-6 py-3 text-xs text-gray-500 border-t border-gray-100 bg-white">
-                初期は全区分オン（総合計）です。売上は対象月に計上された入金のみ、原価は入金があった請求の原価合計、利益率は（売上−原価）÷売上です。
+                初期は全区分オン（総合計）です。売上は対象月に計上された入金のみ、原価は入金があった請求の原価合計、利益は売上−原価、利益率は（売上−原価）÷売上です。
               </p>
             </CardContent>
           )}
@@ -492,6 +500,7 @@ export function MonthlyReportDetailClient({
                   <TableHead className="font-semibold text-xs md:text-sm whitespace-nowrap">請求金額</TableHead>
                   <TableHead className="font-semibold text-xs md:text-sm whitespace-nowrap">入金額（{year}年{month}月）</TableHead>
                   <TableHead className="font-semibold text-xs md:text-sm whitespace-nowrap">原価</TableHead>
+                  <TableHead className="font-semibold text-xs md:text-sm whitespace-nowrap">利益</TableHead>
                   <TableHead className="font-semibold text-xs md:text-sm whitespace-nowrap">利益率</TableHead>
                   <TableHead className="font-semibold text-xs md:text-sm whitespace-nowrap">残額</TableHead>
                 </TableRow>
@@ -499,7 +508,7 @@ export function MonthlyReportDetailClient({
               <TableBody>
                 {invoicesByCustomer.size === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-sm text-gray-500 py-8">
+                    <TableCell colSpan={8} className="text-center text-sm text-gray-500 py-8">
                       表示するデータがありません
                     </TableCell>
                   </TableRow>
@@ -543,12 +552,13 @@ export function MonthlyReportDetailClient({
                           })
                           .reduce((s, p) => s + p.amount, 0);
                         if (monthlyPaidAmount <= 0) return sum;
-                        return sum + (invoice.cost_amount_excluding_tax ?? 0);
+                        return sum + (invoice.cost_amount_including_tax ?? invoice.cost_amount_excluding_tax ?? 0);
                       }, 0);
                       const customerProfitMarginRate =
                         customerPaidTotal > 0
                           ? (customerPaidTotal - customerCostTotal) / customerPaidTotal
                           : undefined;
+                      const customerProfitTotal = customerPaidTotal - customerCostTotal;
                       const customerRemaining = customerInvoiceTotal - customerPaidTotal;
 
                       return (
@@ -571,6 +581,9 @@ export function MonthlyReportDetailClient({
                           </TableCell>
                           <TableCell className="text-xs md:text-sm whitespace-nowrap tabular-nums">
                             {formatCurrency(customerCostTotal)}
+                          </TableCell>
+                          <TableCell className="text-xs md:text-sm whitespace-nowrap tabular-nums">
+                            {formatCurrency(customerProfitTotal)}
                           </TableCell>
                           <TableCell className="text-xs md:text-sm whitespace-nowrap tabular-nums">
                             {formatProfitMarginRate(customerProfitMarginRate)}

@@ -3,7 +3,7 @@ import { getPaymentsByInvoiceId } from "@/src/data/mock";
 
 /**
  * 集計画面用: 選択区分・期間内入金ベースで売上合計・原価合計・利益率を求める。
- * 原価は請求ごとに1回だけ加算（税抜）。入金が期間内にあれば請求全体の原価を足す。
+ * 原価は請求ごとに1回だけ加算（税込）。入金が期間内にあれば請求全体の原価を足す。
  */
 export function summarizeReportSalesCostMargin(params: {
   periodInvoices: Invoice[];
@@ -28,7 +28,7 @@ export function summarizeReportSalesCostMargin(params: {
     if (periodPaid <= 0) continue;
 
     totalSales += periodPaid;
-    totalCost += invoice.cost_amount_excluding_tax ?? 0;
+    totalCost += invoice.cost_amount_including_tax ?? invoice.cost_amount_excluding_tax ?? 0;
   }
 
   const profitMarginRate = totalSales > 0 ? (totalSales - totalCost) / totalSales : undefined;

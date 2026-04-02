@@ -296,9 +296,14 @@ export function PayeeDetailClient({ id }: { id: number }) {
                   disabled={!isEditing}
                   className="size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
                 />
-                <label htmlFor="is_active" className="text-sm text-gray-700">
-                  有効
-                </label>
+                <div className="min-w-0">
+                  <label htmlFor="is_active" className="text-sm text-gray-700">
+                    有効
+                  </label>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    有効な振込先のみ、総合振込の振込先候補として表示されます。使用しなくなった振込先は有効チェックを外してください。
+                  </p>
+                </div>
               </div>
             </div>
           </CardContent>

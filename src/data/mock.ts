@@ -3,6 +3,8 @@ export interface Customer {
   name: string;
   phone: string;
   email: string;
+  /** 郵便番号（例: 150-0041）。封筒ラベル等で使用 */
+  postal_code?: string;
   address: string;
   // 請求関連設定（ダミー）
   billing_contact_name?: string; // 請求先担当者
@@ -88,8 +90,12 @@ export interface Invoice {
   created_at: string;
   items?: InvoiceItem[];
   /**
-   * 原価額（税抜・円）。
-   * 粗利・率の計算は税抜売上（明細の税抜金額の合計＝小計）に対して揃えるのが一般的。
+   * 原価額（税込・円）。請求合計（税込）と同じ土俵で利益額・利益率を算出する。
+   * デモでは税込原価を入力する運用に変更。
+   */
+  cost_amount_including_tax?: number;
+  /**
+   * 旧: 原価額（税抜・円）。互換のため残す（表示・計算は税込を優先）。
    */
   cost_amount_excluding_tax?: number;
   /**
@@ -181,6 +187,7 @@ export const customers: Customer[] = [
     name: "田中太郎",
     phone: "090-1234-5678",
     email: "taro@test.com",
+    postal_code: "150-0041",
     address: "東京都渋谷区神南1-1-1",
     billing_contact_name: "田中 経理担当",
     billing_contact_email: "billing-tanaka@test.com",
@@ -194,6 +201,7 @@ export const customers: Customer[] = [
     name: "株式会社サンプル",
     phone: "03-1234-5678",
     email: "info@sample.co.jp",
+    postal_code: "154-0004",
     address: "東京都世田谷区三軒茶屋2-2-2",
     billing_contact_name: "総務部 経理ご担当者様",
     billing_contact_email: "keiri@sample.co.jp",
@@ -207,6 +215,7 @@ export const customers: Customer[] = [
     name: "佐藤花子",
     phone: "080-9876-5432",
     email: "hanako@example.com",
+    postal_code: "160-0023",
     address: "東京都新宿区西新宿3-3-3",
     created_at: "2025-02-10",
   },
@@ -215,6 +224,7 @@ export const customers: Customer[] = [
     name: "鈴木一郎",
     phone: "090-1111-2222",
     email: "ichiro@test.com",
+    postal_code: "106-0032",
     address: "東京都港区六本木4-4-4",
     billing_contact_name: "鈴木",
     billing_payment_method: "振込",
@@ -225,6 +235,7 @@ export const customers: Customer[] = [
     name: "高橋美咲",
     phone: "070-3333-4444",
     email: "misaki@example.com",
+    postal_code: "153-0063",
     address: "東京都目黒区目黒5-5-5",
     created_at: "2025-03-01",
   },
@@ -233,6 +244,7 @@ export const customers: Customer[] = [
     name: "株式会社建設丸",
     phone: "03-5555-6666",
     email: "info@kensetsumaru.co.jp",
+    postal_code: "141-0032",
     address: "東京都品川区大崎6-6-6",
     billing_contact_name: "経理部",
     billing_closing_day: "25日締め",
@@ -399,9 +411,10 @@ export const invoices: Invoice[] = [
     status: "有",
     created_at: "2025-03-07",
     revenue_category: "リフォーム",
+    cost_amount_including_tax: 330000,
     cost_amount_excluding_tax: 300000,
-    cost_rate: 0.6,
-    profit_margin_rate: 0.4,
+    cost_rate: 330000 / 550000,
+    profit_margin_rate: (550000 - 330000) / 550000,
     items: [
       { id: 1, name: "内装リフォーム工事", quantity: 1, unit_price: 300000, amount: 300000 },
       { id: 2, name: "キッチン交換", quantity: 1, unit_price: 200000, amount: 200000 },
@@ -417,9 +430,10 @@ export const invoices: Invoice[] = [
     status: "無し",
     created_at: "2025-03-08",
     revenue_category: "新築",
+    cost_amount_including_tax: 165000000,
     cost_amount_excluding_tax: 150000000,
-    cost_rate: 150000000 / 180000000,
-    profit_margin_rate: 30000000 / 180000000,
+    cost_rate: 165000000 / 198000000,
+    profit_margin_rate: (198000000 - 165000000) / 198000000,
     items: [{ id: 1, name: "新築戸建売買", quantity: 1, unit_price: 180000000, amount: 180000000 }],
   },
   {
@@ -431,9 +445,10 @@ export const invoices: Invoice[] = [
     status: "無し",
     created_at: "2025-03-12",
     revenue_category: "仲介料",
+    cost_amount_including_tax: 22000000,
     cost_amount_excluding_tax: 20000000,
-    cost_rate: 0.8,
-    profit_margin_rate: 0.2,
+    cost_rate: 22000000 / 27500000,
+    profit_margin_rate: (27500000 - 22000000) / 27500000,
     items: [{ id: 1, name: "仲介手数料", quantity: 1, unit_price: 25000000, amount: 25000000 }],
   },
   {
@@ -445,9 +460,10 @@ export const invoices: Invoice[] = [
     status: "有",
     created_at: "2025-03-01",
     revenue_category: "土地",
+    cost_amount_including_tax: 341000000,
     cost_amount_excluding_tax: 310000000,
-    cost_rate: 310000000 / 350000000,
-    profit_margin_rate: 40000000 / 350000000,
+    cost_rate: 341000000 / 385000000,
+    profit_margin_rate: (385000000 - 341000000) / 385000000,
     items: [{ id: 1, name: "中古マンション売買", quantity: 1, unit_price: 350000000, amount: 350000000 }],
   },
   {
@@ -459,9 +475,10 @@ export const invoices: Invoice[] = [
     status: "無し",
     created_at: "2025-03-16",
     revenue_category: "リフォーム",
+    cost_amount_including_tax: 572000,
     cost_amount_excluding_tax: 520000,
-    cost_rate: 0.65,
-    profit_margin_rate: 0.35,
+    cost_rate: 572000 / 880000,
+    profit_margin_rate: (880000 - 572000) / 880000,
     items: [{ id: 1, name: "キッチンリフォーム工事", quantity: 1, unit_price: 800000, amount: 800000 }],
   },
   {
@@ -474,9 +491,10 @@ export const invoices: Invoice[] = [
     status: "有",
     created_at: "2026-02-15",
     revenue_category: "新築",
+    cost_amount_including_tax: 41800000,
     cost_amount_excluding_tax: 38000000,
-    cost_rate: 38000000 / 45000000,
-    profit_margin_rate: 7000000 / 45000000,
+    cost_rate: 41800000 / 49500000,
+    profit_margin_rate: (49500000 - 41800000) / 49500000,
     items: [{ id: 1, name: "新築一戸建", quantity: 1, unit_price: 45000000, amount: 45000000 }],
   },
   {
@@ -488,9 +506,10 @@ export const invoices: Invoice[] = [
     status: "有",
     created_at: "2026-02-25",
     revenue_category: "リフォーム",
+    cost_amount_including_tax: 880000,
     cost_amount_excluding_tax: 800000,
-    cost_rate: 800000 / 1200000,
-    profit_margin_rate: 400000 / 1200000,
+    cost_rate: 880000 / 1320000,
+    profit_margin_rate: (1320000 - 880000) / 1320000,
     items: [{ id: 1, name: "オフィスリノベーション", quantity: 1, unit_price: 1200000, amount: 1200000 }],
   },
   {
@@ -514,9 +533,10 @@ export const invoices: Invoice[] = [
     status: "有",
     created_at: "2026-03-05",
     revenue_category: "仲介料",
+    cost_amount_including_tax: 13200000,
     cost_amount_excluding_tax: 12000000,
-    cost_rate: 12000000 / 18000000,
-    profit_margin_rate: 6000000 / 18000000,
+    cost_rate: 13200000 / 19800000,
+    profit_margin_rate: (19800000 - 13200000) / 19800000,
     items: [{ id: 1, name: "仲介手数料", quantity: 1, unit_price: 18000000, amount: 18000000 }],
   },
   {
@@ -528,9 +548,10 @@ export const invoices: Invoice[] = [
     status: "無し",
     created_at: "2026-03-15",
     revenue_category: "仲介料",
+    cost_amount_including_tax: 8800000,
     cost_amount_excluding_tax: 8000000,
-    cost_rate: 8000000 / 12000000,
-    profit_margin_rate: 4000000 / 12000000,
+    cost_rate: 8800000 / 13200000,
+    profit_margin_rate: (13200000 - 8800000) / 13200000,
     items: [{ id: 1, name: "土地仲介手数料", quantity: 1, unit_price: 12000000, amount: 12000000 }],
   },
 ];

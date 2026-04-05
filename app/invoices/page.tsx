@@ -16,11 +16,22 @@ import {
   projects,
   getCustomerById,
   getPropertyById,
+  getStaffById,
   getInvoiceRevenueCategory,
+  getInvoiceStaffId,
   calculateInvoiceStatus,
   type RevenueCategory,
 } from "@/src/data/mock";
-import { isWithinYmdRange, rangeForHalf, rangeForMonth, rangeForYear, type HalfKey, type PeriodMode } from "@/lib/date-range";
+import {
+  isWithinYmdRange,
+  rangeForHalf,
+  rangeForMonth,
+  rangeForFiscalYearJuneMay,
+  fiscalStartYearContainingDate,
+  fiscalStartYearForYmd,
+  type HalfKey,
+  type PeriodMode,
+} from "@/lib/date-range";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
@@ -41,7 +52,9 @@ export default function InvoicesPage() {
   const [categoryFilter, setCategoryFilter] = useState<RevenueCategory | "">("");
   const [statusFilter, setStatusFilter] = useState<"" | "有" | "無し">("");
   const [periodMode, setPeriodMode] = useState<PeriodMode>("all");
-  const [periodYear, setPeriodYear] = useState<number>(new Date().getFullYear());
+  const [periodYear, setPeriodYear] = useState<number>(() =>
+    fiscalStartYearContainingDate(new Date())
+  );
   const [periodMonth, setPeriodMonth] = useState<number>(new Date().getMonth() + 1);
   const [periodHalf, setPeriodHalf] = useState<HalfKey>("H1");
   const [customFrom, setCustomFrom] = useState<string>("");
@@ -63,9 +76,13 @@ export default function InvoicesPage() {
   };
 
   const jumpToThisYear = () => {
-    const d = new Date();
     setPeriodMode("year");
-    setPeriodYear(d.getFullYear());
+    setPeriodYear(fiscalStartYearContainingDate(new Date()));
+  };
+
+  const jumpToPreviousYear = () => {
+    setPeriodMode("year");
+    setPeriodYear(fiscalStartYearContainingDate(new Date()) - 1);
   };
 
   const formatYmdJa = (ymd: string): string => {
@@ -76,17 +93,17 @@ export default function InvoicesPage() {
 
   const availableYears = useMemo(() => {
     const years = new Set<number>();
-    for (const inv of invoices) years.add(Number(inv.created_at.slice(0, 4)));
+    for (const inv of invoices) years.add(fiscalStartYearForYmd(inv.created_at));
     const arr = Array.from(years).filter((y) => Number.isFinite(y));
     arr.sort((a, b) => b - a);
-    return arr.length ? arr : [new Date().getFullYear()];
+    return arr.length ? arr : [fiscalStartYearContainingDate(new Date())];
   }, []);
 
   const periodRange = useMemo(() => {
     if (periodMode === "all") return null;
     if (periodMode === "month") return rangeForMonth(periodYear, periodMonth);
     if (periodMode === "half") return rangeForHalf(periodYear, periodHalf);
-    if (periodMode === "year") return rangeForYear(periodYear);
+    if (periodMode === "year") return rangeForFiscalYearJuneMay(periodYear);
     if (!customFrom || !customTo) return null;
     if (customFrom > customTo) return { start: customTo, end: customFrom };
     return { start: customFrom, end: customTo };
@@ -109,6 +126,9 @@ export default function InvoicesPage() {
       const project = projects.find((p) => p.id === (invoice as any).project_id);
       const customer = project ? getCustomerById(project.customer_id) : undefined;
       const property = project ? getPropertyById(project.property_id) : undefined;
+      const invoiceStaffId = getInvoiceStaffId(invoice);
+      const staffMember =
+        invoiceStaffId != null ? getStaffById(invoiceStaffId) : undefined;
       const paymentStatus = calculateInvoiceStatus(invoice);
       const manualStatus = invoice.status;
       const manualStatusLabel = manualStatus === "有" ? "黄色有" : "黄色無し";
@@ -116,6 +136,7 @@ export default function InvoicesPage() {
         invoice.invoice_number.toLowerCase().includes(query) ||
         customer?.name.toLowerCase().includes(query) ||
         property?.name.toLowerCase().includes(query) ||
+        staffMember?.name.toLowerCase().includes(query) ||
         paymentStatus.includes(query) ||
         manualStatus.includes(query) ||
         manualStatusLabel.toLowerCase().includes(query)
@@ -150,7 +171,7 @@ export default function InvoicesPage() {
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="請求番号、顧客名、物件名、ステータス、入金状況で検索..."
+                    placeholder="請求番号、顧客名、物件名、担当者名、ステータス、入金状況で検索..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all shadow-sm"
@@ -251,8 +272,12 @@ export default function InvoicesPage() {
                     className="py-3 px-4 min-w-[110px] border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all shadow-sm bg-white"
                   >
                     {availableYears.map((y) => (
-                      <option key={y} value={y}>
-                        {y}年
+                      <option
+                        key={y}
+                        value={y}
+                        title={`${y}/6/1〜${y + 1}/5/31（会計年度）`}
+                      >
+                        {y}年6月期
                       </option>
                     ))}
                   </select>
@@ -330,9 +355,16 @@ export default function InvoicesPage() {
                   先月
                 </Button>
                 <Button type="button" variant="outline" size="sm" onClick={jumpToThisYear}>
-                  今年
+                  今期
                 </Button>
-                {(searchQuery || categoryFilter || statusFilter || periodRange || periodMode === "all") && (
+                <Button type="button" variant="outline" size="sm" onClick={jumpToPreviousYear}>
+                  前期
+                </Button>
+                {(searchQuery ||
+                  categoryFilter ||
+                  statusFilter ||
+                  periodRange ||
+                  periodMode === "all") && (
                   <span className="text-sm text-gray-500">{filteredInvoices.length}件</span>
                 )}
               </div>
@@ -351,6 +383,7 @@ export default function InvoicesPage() {
                   <TableHead className="font-semibold">請求番号</TableHead>
                   <TableHead className="font-semibold">顧客</TableHead>
                   <TableHead className="font-semibold">物件</TableHead>
+                  <TableHead className="font-semibold">担当者</TableHead>
                   <TableHead className="font-semibold">区分</TableHead>
                   <TableHead className="font-semibold">金額</TableHead>
                   <TableHead className="font-semibold">支払期限</TableHead>
@@ -366,6 +399,9 @@ export default function InvoicesPage() {
                   const project = projects.find((p) => p.id === (invoice as any).project_id);
                   const customer = project ? getCustomerById(project.customer_id) : undefined;
                   const property = project ? getPropertyById(project.property_id) : undefined;
+                  const invoiceStaffId = getInvoiceStaffId(invoice);
+                  const staffMember =
+                    invoiceStaffId != null ? getStaffById(invoiceStaffId) : undefined;
                   const paymentStatus = calculateInvoiceStatus(invoice);
                   const isOverdue =
                     paymentStatus !== "入金済み" &&
@@ -402,6 +438,18 @@ export default function InvoicesPage() {
                             className="text-gray-700 hover:text-blue-600 hover:underline"
                           >
                             {property.name}
+                          </Link>
+                        ) : (
+                          "-"
+                        )}
+                      </TableCell>
+                      <TableCell className="text-gray-700">
+                        {staffMember ? (
+                          <Link
+                            href={`/staff/${staffMember.id}`}
+                            className="hover:text-blue-600 hover:underline"
+                          >
+                            {staffMember.name}
                           </Link>
                         ) : (
                           "-"
@@ -456,7 +504,7 @@ export default function InvoicesPage() {
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={11} className="text-center py-8 text-gray-500">
                       検索結果が見つかりませんでした
                     </TableCell>
                   </TableRow>

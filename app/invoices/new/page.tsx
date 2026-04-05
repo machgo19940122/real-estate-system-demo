@@ -4,7 +4,7 @@ import { useMemo, useState, useEffect, Suspense } from "react";
 import { AppLayout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { customers, properties, estimates } from "@/src/data/mock";
+import { customers, properties, estimates, staff, getStaffById } from "@/src/data/mock";
 import { formatCurrency } from "@/lib/utils";
 import {
   formatProfitMarginRate,
@@ -32,19 +32,22 @@ function NewInvoiceForm() {
   const presetCustomerId = searchParams.get("customerId") ?? "";
   const presetRevenueCategory = searchParams.get("revenueCategory") ?? "";
   const presetEstimateId = searchParams.get("estimateId");
+  const presetStaffId = searchParams.get("staffId") ?? "";
 
   const [customerId, setCustomerId] = useState(presetCustomerId);
   const [propertyId, setPropertyId] = useState(presetPropertyId);
+  const [staffId, setStaffId] = useState(presetStaffId);
   const [note, setNote] = useState("");
   const [items, setItems] = useState<InvoiceItemForm[]>([]);
   const [costIncludingTaxStr, setCostIncludingTaxStr] = useState("");
 
-  // 見積から明細を引き継ぎ
+  // 見積から明細・担当を引き継ぎ（URL の staffId が無い場合は見積の担当を使用）
   useEffect(() => {
     if (!presetEstimateId) return;
     const estimateIdNum = Number(presetEstimateId);
     const estimate = estimates.find((e) => e.id === estimateIdNum);
-    if (estimate?.items && estimate.items.length > 0) {
+    if (!estimate) return;
+    if (estimate.items && estimate.items.length > 0) {
       setItems(
         estimate.items.map((item) => ({
           id: item.id,
@@ -54,7 +57,10 @@ function NewInvoiceForm() {
         }))
       );
     }
-  }, [presetEstimateId]);
+    if (!presetStaffId && estimate.staff_id != null) {
+      setStaffId(String(estimate.staff_id));
+    }
+  }, [presetEstimateId, presetStaffId]);
 
   const { subtotal, tax, total } = useMemo(() => {
     const sub = items.reduce(
@@ -125,9 +131,14 @@ function NewInvoiceForm() {
       costIncludingTaxStr.trim() !== ""
         ? `\n原価金額（税込）: ${costIncludingTaxStr.trim()}\n利益率: ${formatProfitMarginRate(newFormProfitMargin)}`
         : "";
+    const staffLine =
+      staffId !== ""
+        ? `\n担当者: ${getStaffById(Number(staffId))?.name ?? staffId}`
+        : "\n担当者: （未選択）";
     alert(
       "新規請求登録機能（ダミー）\n備考: " +
         (note.trim() || "-") +
+        staffLine +
         "\n請求明細行数: " +
         items.length +
         costLine
@@ -201,6 +212,26 @@ function NewInvoiceForm() {
                     <option value="リフォーム">リフォーム</option>
                     <option value="土地">土地</option>
                     <option value="仲介料">仲介料</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2 md:col-span-1">
+                  <label htmlFor="staff" className="text-sm font-medium text-gray-700">
+                    担当者
+                  </label>
+                  <select
+                    id="staff"
+                    name="staff_id"
+                    value={staffId}
+                    onChange={(e) => setStaffId(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white"
+                  >
+                    <option value="">選択してください</option>
+                    {staff.map((member) => (
+                      <option key={member.id} value={member.id}>
+                        {member.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
 

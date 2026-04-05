@@ -24,7 +24,11 @@ import {
   type RevenueCategory,
 } from "@/src/data/mock";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { summarizeReportSalesCostMargin, getInvoicePaidInMonth } from "@/lib/report-sales-cost-summary";
+import {
+  summarizeReportSalesCostMargin,
+  getInvoicePaidInMonth,
+  isInvoiceCreatedInCalendarMonth,
+} from "@/lib/report-sales-cost-summary";
 import { ReportSalesSummaryStats } from "@/components/report-sales-summary-stats";
 import { formatProfitMarginRate } from "@/lib/invoice-cost-metrics";
 import { ArrowLeft, Download, Lock, CheckCircle, TrendingUp, ChevronDown, ChevronUp } from "lucide-react";
@@ -69,14 +73,10 @@ export function MonthlyReportDetailClient({
     useState<Record<RevenueCategory, boolean>>(defaultSectionIncluded);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
-  // 選択された年月の入金済み請求を取得
+  // 対象月に「入金がある」または「請求日（created_at）が対象月」の請求（原価は入金の有無に依らず集計）
   const monthlyInvoices = useMemo(() => {
     return invoices.filter((invoice) => {
       const invoicePayments = getPaymentsByInvoiceId(invoice.id);
-      const totalPaid = getTotalPaidAmount(invoice.id);
-      if (totalPaid === 0) return false;
-
-      // 入金日が選択された年月に含まれるかチェック
       const hasPaymentInMonth = invoicePayments.some((payment) => {
         const paymentDate = new Date(payment.payment_date);
         return (
@@ -84,7 +84,8 @@ export function MonthlyReportDetailClient({
           paymentDate.getMonth() + 1 === month
         );
       });
-      return hasPaymentInMonth;
+      const createdInMonth = isInvoiceCreatedInCalendarMonth(invoice, year, month);
+      return hasPaymentInMonth || createdInMonth;
     });
   }, [year, month]);
 
@@ -141,6 +142,12 @@ export function MonthlyReportDetailClient({
     const totals: Record<RevenueCategory, number> = { 新築: 0, リフォーム: 0, 土地: 0, 仲介料: 0 };
     const counts: Record<RevenueCategory, number> = { 新築: 0, リフォーム: 0, 土地: 0, 仲介料: 0 };
     const costTotals: Record<RevenueCategory, number> = { 新築: 0, リフォーム: 0, 土地: 0, 仲介料: 0 };
+    const invoiceRevenueTotals: Record<RevenueCategory, number> = {
+      新築: 0,
+      リフォーム: 0,
+      土地: 0,
+      仲介料: 0,
+    };
 
     Object.entries(invoicesByCategory).forEach(([category, categoryInvoices]) => {
       const cat = category as RevenueCategory;
@@ -156,20 +163,19 @@ export function MonthlyReportDetailClient({
           })
           .reduce((sum, p) => sum + p.amount, 0);
         totals[cat] += monthlyPaidAmount;
-        if (monthlyPaidAmount > 0) {
-          counts[cat]++;
-          costTotals[cat] += invoice.cost_amount_including_tax ?? invoice.cost_amount_excluding_tax ?? 0;
-        }
+        counts[cat]++;
+        invoiceRevenueTotals[cat] += invoice.amount;
+        costTotals[cat] += invoice.cost_amount_including_tax ?? invoice.cost_amount_excluding_tax ?? 0;
       });
     });
 
     const profitMarginRates = {} as Record<RevenueCategory, number | undefined>;
     for (const cat of ALL_CATEGORIES) {
-      const sales = totals[cat];
-      profitMarginRates[cat] = sales > 0 ? (sales - costTotals[cat]) / sales : undefined;
+      const invRev = invoiceRevenueTotals[cat];
+      profitMarginRates[cat] = invRev > 0 ? (invRev - costTotals[cat]) / invRev : undefined;
     }
 
-    return { totals, counts, costTotals, profitMarginRates };
+    return { totals, counts, costTotals, invoiceRevenueTotals, profitMarginRates };
   }, [invoicesByCategory, year, month]);
 
   const periodLabel = title ?? `${year}年${month}月`;
@@ -210,6 +216,7 @@ export function MonthlyReportDetailClient({
         return project ? getRevenueCategory(project.type) : null;
       },
       getPeriodPaidAmount: (inv) => getInvoicePaidInMonth(inv, year, month),
+      includeInvoicesWithoutPeriodPayment: true,
     });
   }, [monthlyInvoices, sectionIncluded, year, month]);
 
@@ -351,7 +358,8 @@ export function MonthlyReportDetailClient({
                   </div>
                 </div>
                 <ReportSalesSummaryStats
-                  totalSales={salesCostSummary.totalSales}
+                  totalPaidInPeriod={salesCostSummary.totalPaidInPeriod}
+                  totalInvoiceRevenue={salesCostSummary.totalInvoiceRevenue}
                   totalCost={salesCostSummary.totalCost}
                   profitMarginRate={salesCostSummary.profitMarginRate}
                 />
@@ -446,11 +454,17 @@ export function MonthlyReportDetailClient({
                       <span className="text-xs text-gray-500 flex-1 min-w-0">
                         {categoryTotals.counts[category]}件
                       </span>
-                      <div className="grid grid-cols-4 gap-3 items-end shrink-0">
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3 items-end shrink-0 max-w-full">
                         <div className="text-right">
-                          <p className="text-[10px] text-gray-500 leading-none">売上</p>
+                          <p className="text-[10px] text-gray-500 leading-none">入金計上</p>
                           <p className="text-sm font-semibold text-gray-900 tabular-nums">
                             {formatCurrency(categoryTotals.totals[category])}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] text-gray-500 leading-none">請求税込</p>
+                          <p className="text-sm font-semibold text-gray-900 tabular-nums">
+                            {formatCurrency(categoryTotals.invoiceRevenueTotals[category])}
                           </p>
                         </div>
                         <div className="text-right">
@@ -463,7 +477,8 @@ export function MonthlyReportDetailClient({
                           <p className="text-[10px] text-gray-500 leading-none">利益</p>
                           <p className="text-sm font-semibold text-gray-900 tabular-nums">
                             {formatCurrency(
-                              categoryTotals.totals[category] - categoryTotals.costTotals[category]
+                              categoryTotals.invoiceRevenueTotals[category] -
+                                categoryTotals.costTotals[category]
                             )}
                           </p>
                         </div>
@@ -480,7 +495,7 @@ export function MonthlyReportDetailClient({
               </ul>
 
               <p className="px-5 sm:px-6 py-3 text-xs text-gray-500 border-t border-gray-100 bg-white">
-                初期は全区分オン（総合計）です。売上は対象月に計上された入金のみ、原価は入金があった請求の原価合計、利益は売上−原価、利益率は（売上−原価）÷売上です。
+                初期は全区分オン（総合計）です。対象請求は「対象月に入金がある」または「請求日（作成日）が対象月」のいずれか。入金計上は対象月の入金のみ。請求税込・原価は対象請求ごとに税込請求額・入力原価を反映（当月入金の有無は問いません）。利益・利益率は請求税込ベース（請求税込−原価、÷請求税込）です。
               </p>
             </CardContent>
           )}
@@ -541,24 +556,17 @@ export function MonthlyReportDetailClient({
                           .reduce((sum, p) => sum + p.amount, 0);
                         return sum + monthlyPaidAmount;
                       }, 0);
-                      const customerCostTotal = customerInvoices.reduce((sum, invoice) => {
-                        const monthlyPaidAmount = getPaymentsByInvoiceId(invoice.id)
-                          .filter((payment) => {
-                            const paymentDate = new Date(payment.payment_date);
-                            return (
-                              paymentDate.getFullYear() === year &&
-                              paymentDate.getMonth() + 1 === month
-                            );
-                          })
-                          .reduce((s, p) => s + p.amount, 0);
-                        if (monthlyPaidAmount <= 0) return sum;
-                        return sum + (invoice.cost_amount_including_tax ?? invoice.cost_amount_excluding_tax ?? 0);
-                      }, 0);
+                      const customerCostTotal = customerInvoices.reduce(
+                        (sum, invoice) =>
+                          sum +
+                          (invoice.cost_amount_including_tax ?? invoice.cost_amount_excluding_tax ?? 0),
+                        0
+                      );
                       const customerProfitMarginRate =
-                        customerPaidTotal > 0
-                          ? (customerPaidTotal - customerCostTotal) / customerPaidTotal
+                        customerInvoiceTotal > 0
+                          ? (customerInvoiceTotal - customerCostTotal) / customerInvoiceTotal
                           : undefined;
-                      const customerProfitTotal = customerPaidTotal - customerCostTotal;
+                      const customerProfitTotal = customerInvoiceTotal - customerCostTotal;
                       const customerRemaining = customerInvoiceTotal - customerPaidTotal;
 
                       return (

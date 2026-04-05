@@ -20,7 +20,16 @@ import {
   getStaffById,
   type RevenueCategory,
 } from "@/src/data/mock";
-import { isWithinYmdRange, rangeForHalf, rangeForMonth, rangeForYear, type HalfKey, type PeriodMode } from "@/lib/date-range";
+import {
+  isWithinYmdRange,
+  rangeForHalf,
+  rangeForMonth,
+  rangeForFiscalYearJuneMay,
+  fiscalStartYearContainingDate,
+  fiscalStartYearForYmd,
+  type HalfKey,
+  type PeriodMode,
+} from "@/lib/date-range";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
@@ -39,7 +48,9 @@ export default function EstimatesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<RevenueCategory | "">("");
   const [periodMode, setPeriodMode] = useState<PeriodMode>("all");
-  const [periodYear, setPeriodYear] = useState<number>(new Date().getFullYear());
+  const [periodYear, setPeriodYear] = useState<number>(() =>
+    fiscalStartYearContainingDate(new Date())
+  );
   const [periodMonth, setPeriodMonth] = useState<number>(new Date().getMonth() + 1);
   const [periodHalf, setPeriodHalf] = useState<HalfKey>("H1");
   const [customFrom, setCustomFrom] = useState<string>("");
@@ -61,9 +72,13 @@ export default function EstimatesPage() {
   };
 
   const jumpToThisYear = () => {
-    const d = new Date();
     setPeriodMode("year");
-    setPeriodYear(d.getFullYear());
+    setPeriodYear(fiscalStartYearContainingDate(new Date()));
+  };
+
+  const jumpToPreviousYear = () => {
+    setPeriodMode("year");
+    setPeriodYear(fiscalStartYearContainingDate(new Date()) - 1);
   };
 
   const formatYmdJa = (ymd: string): string => {
@@ -74,17 +89,17 @@ export default function EstimatesPage() {
 
   const availableYears = useMemo(() => {
     const years = new Set<number>();
-    for (const e of estimates) years.add(Number(e.created_at.slice(0, 4)));
+    for (const e of estimates) years.add(fiscalStartYearForYmd(e.created_at));
     const arr = Array.from(years).filter((y) => Number.isFinite(y));
     arr.sort((a, b) => b - a);
-    return arr.length ? arr : [new Date().getFullYear()];
+    return arr.length ? arr : [fiscalStartYearContainingDate(new Date())];
   }, []);
 
   const periodRange = useMemo(() => {
     if (periodMode === "all") return null;
     if (periodMode === "month") return rangeForMonth(periodYear, periodMonth);
     if (periodMode === "half") return rangeForHalf(periodYear, periodHalf);
-    if (periodMode === "year") return rangeForYear(periodYear);
+    if (periodMode === "year") return rangeForFiscalYearJuneMay(periodYear);
     if (!customFrom || !customTo) return null;
     if (customFrom > customTo) return { start: customTo, end: customFrom };
     return { start: customFrom, end: customTo };
@@ -233,8 +248,12 @@ export default function EstimatesPage() {
                     className="py-3 px-4 min-w-[110px] border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all shadow-sm bg-white"
                   >
                     {availableYears.map((y) => (
-                      <option key={y} value={y}>
-                        {y}年
+                      <option
+                        key={y}
+                        value={y}
+                        title={`${y}/6/1〜${y + 1}/5/31（会計年度）`}
+                      >
+                        {y}年6月期
                       </option>
                     ))}
                   </select>
@@ -312,7 +331,10 @@ export default function EstimatesPage() {
                   先月
                 </Button>
                 <Button type="button" variant="outline" size="sm" onClick={jumpToThisYear}>
-                  今年
+                  今期
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={jumpToPreviousYear}>
+                  前期
                 </Button>
                 {(searchQuery || categoryFilter || periodRange || periodMode === "all") && (
                   <span className="text-sm text-gray-500">{filteredEstimates.length}件</span>

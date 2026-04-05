@@ -60,7 +60,6 @@ export function CustomerCombobox({
         onChange(next ? next.value : "");
         setInputValue("");
       }}
-      defaultInputValue=""
       onInputValueChange={(next) => setInputValue(next)}
       itemToStringLabel={(item) => item.label}
       itemToStringValue={(item) => item.value}

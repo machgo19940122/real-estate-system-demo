@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useMemo, Suspense } from "react";
+import { useState, useMemo, Suspense, useEffect, useCallback } from "react";
 import { AppLayout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { customers, properties, staff } from "@/src/data/mock";
+import { customers, properties, staff, getEstimateById } from "@/src/data/mock";
 import { formatCurrency } from "@/lib/utils";
-import { ArrowLeft, Plus, X } from "lucide-react";
+import { buildDraftFromEstimate, type EstimateNewFormDraft } from "@/lib/estimate-prefill";
+import { EstimateQuoteModal } from "@/components/estimate-quote-modal";
+import { ArrowLeft, Plus, Quote, X } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { CustomerCombobox } from "@/components/customer-combobox";
@@ -19,13 +21,35 @@ function NewEstimateForm() {
   const presetPropertyId = searchParams.get("propertyId") ?? "";
   const presetCustomerId = searchParams.get("customerId") ?? "";
   const presetRevenueCategory = searchParams.get("revenueCategory") ?? "";
+  const fromEstimateIdParam = searchParams.get("fromEstimateId") ?? "";
 
   const [customerId, setCustomerId] = useState(presetCustomerId);
   const [propertyId, setPropertyId] = useState(presetPropertyId);
+  const [revenueCategory, setRevenueCategory] = useState(presetRevenueCategory);
+  const [staffId, setStaffId] = useState("");
   const [note, setNote] = useState("");
   const [items, setItems] = useState([
     { id: 1, name: "", quantity: 1, unit_price: 0 },
   ]);
+  const [quoteModalOpen, setQuoteModalOpen] = useState(false);
+
+  const applyDraft = useCallback((draft: EstimateNewFormDraft) => {
+    setCustomerId(draft.customerId);
+    setPropertyId(draft.propertyId);
+    setRevenueCategory(draft.revenueCategory);
+    setStaffId(draft.staffId);
+    setNote(draft.note);
+    setItems(draft.items);
+  }, []);
+
+  useEffect(() => {
+    if (!fromEstimateIdParam) return;
+    const id = parseInt(fromEstimateIdParam, 10);
+    if (Number.isNaN(id)) return;
+    const src = getEstimateById(id);
+    if (!src) return;
+    applyDraft(buildDraftFromEstimate(src));
+  }, [fromEstimateIdParam, applyDraft]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,19 +97,25 @@ function NewEstimateForm() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Link href="/estimates">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              戻る
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-              新規見積登録
-            </h1>
-            <p className="text-gray-600 mt-1">新しい見積情報を登録します</p>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Link href="/estimates">
+              <Button variant="outline" size="sm">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                戻る
+              </Button>
+            </Link>
+            <div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                新規見積登録
+              </h1>
+              <p className="text-gray-600 mt-1">新しい見積情報を登録します</p>
+            </div>
           </div>
+          <Button type="button" variant="outline" onClick={() => setQuoteModalOpen(true)}>
+            <Quote className="h-4 w-4 mr-2" />
+            見積を引用
+          </Button>
         </div>
 
         <Card className="border-0 shadow-lg">
@@ -115,8 +145,9 @@ function NewEstimateForm() {
                     id="revenue_category"
                     name="revenue_category"
                     required
+                    value={revenueCategory}
+                    onChange={(e) => setRevenueCategory(e.target.value)}
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white"
-                    defaultValue={presetRevenueCategory}
                   >
                     <option value="">選択してください</option>
                     <option value="新築">新築</option>
@@ -133,6 +164,9 @@ function NewEstimateForm() {
                   </label>
                   <select
                     id="staff"
+                    name="staff"
+                    value={staffId}
+                    onChange={(e) => setStaffId(e.target.value)}
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white"
                   >
                     <option value="">選択してください</option>
@@ -277,6 +311,12 @@ function NewEstimateForm() {
             </form>
           </CardContent>
         </Card>
+
+        <EstimateQuoteModal
+          open={quoteModalOpen}
+          onOpenChange={setQuoteModalOpen}
+          onSelectEstimate={(e) => applyDraft(buildDraftFromEstimate(e))}
+        />
       </div>
     </AppLayout>
   );

@@ -15,10 +15,14 @@ import { summarizeReportSalesCostMargin, getInvoicePaidInRange } from "@/lib/rep
 import { formatCurrency } from "@/lib/utils";
 import { formatProfitMarginRate } from "@/lib/invoice-cost-metrics";
 import { ReportSalesSummaryStats } from "@/components/report-sales-summary-stats";
-import { Calendar, TrendingUp, FileText, Calculator } from "lucide-react";
+import { Calendar, TrendingUp, FileText, Calculator, CircleHelp } from "lucide-react";
 import Link from "next/link";
+import { ReportsAggregateHelpModal } from "@/components/reports-aggregate-help-modal";
 
 const ALL_CATEGORIES: RevenueCategory[] = ["新築", "リフォーム", "土地", "仲介料"];
+
+/** 保留: `true` にすると「計算の見方」ヘルプボタンを表示（モーダルは常にマウント） */
+const SHOW_REPORTS_CALC_HELP_BUTTON = false;
 
 function defaultSectionIncluded(): Record<RevenueCategory, boolean> {
   return { 新築: true, リフォーム: true, 土地: true, 仲介料: true };
@@ -34,6 +38,7 @@ export default function ReportsPage() {
     useState<Record<RevenueCategory, boolean>>(defaultSectionIncluded);
 
   const [isAggregating, setIsAggregating] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [applied, setApplied] = useState<{
     periodMode: "monthly" | "half" | "year";
     year: number;
@@ -117,6 +122,7 @@ export default function ReportsPage() {
         totals: { ...emptyTotals },
         counts: { ...emptyTotals },
         costTotals: { ...emptyTotals },
+        invoiceRevenueTotals: { ...emptyTotals },
         profitMarginRates: { ...emptyMargin },
       };
     }
@@ -142,6 +148,12 @@ export default function ReportsPage() {
       土地: 0,
       仲介料: 0,
     };
+    const invoiceRevenueTotals: Record<RevenueCategory, number> = {
+      新築: 0,
+      リフォーム: 0,
+      土地: 0,
+      仲介料: 0,
+    };
 
     periodInvoices.forEach((invoice) => {
       const category = getInvoiceRevenueCategory(invoice);
@@ -154,24 +166,26 @@ export default function ReportsPage() {
       totals[category] += periodPaidAmount;
       if (periodPaidAmount > 0) {
         counts[category]++;
+        invoiceRevenueTotals[category] += invoice.amount;
         costTotals[category] += invoice.cost_amount_including_tax ?? invoice.cost_amount_excluding_tax ?? 0;
       }
     });
 
     const profitMarginRates = {} as Record<RevenueCategory, number | undefined>;
     for (const cat of ALL_CATEGORIES) {
-      const sales = totals[cat];
+      const invRev = invoiceRevenueTotals[cat];
       profitMarginRates[cat] =
-        sales > 0 ? (sales - costTotals[cat]) / sales : undefined;
+        invRev > 0 ? (invRev - costTotals[cat]) / invRev : undefined;
     }
 
-    return { totals, counts, costTotals, profitMarginRates };
+    return { totals, counts, costTotals, invoiceRevenueTotals, profitMarginRates };
   }, [periodInvoices, range]);
 
   const salesCostSummary = useMemo(() => {
     if (!range) {
       return {
-        totalSales: 0,
+        totalPaidInPeriod: 0,
+        totalInvoiceRevenue: 0,
         totalCost: 0,
         profitMarginRate: undefined as number | undefined,
       };
@@ -256,7 +270,7 @@ export default function ReportsPage() {
             </div>
           </div>
         )}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div>
             <h1 className="text-2xl md:text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
               集計
@@ -265,6 +279,19 @@ export default function ReportsPage() {
               月次・半期・通期の売上を区分別に集計します
             </p>
           </div>
+          {SHOW_REPORTS_CALC_HELP_BUTTON && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="shrink-0 border-gray-300 text-gray-700 self-start sm:self-auto"
+              onClick={() => setHelpOpen(true)}
+              aria-haspopup="dialog"
+            >
+              <CircleHelp className="h-4 w-4 mr-2" />
+              計算の見方
+            </Button>
+          )}
         </div>
 
         {/* 期間選択 */}
@@ -492,7 +519,8 @@ export default function ReportsPage() {
                       </div>
                     </div>
                     <ReportSalesSummaryStats
-                      totalSales={salesCostSummary.totalSales}
+                      totalPaidInPeriod={salesCostSummary.totalPaidInPeriod}
+                      totalInvoiceRevenue={salesCostSummary.totalInvoiceRevenue}
                       totalCost={salesCostSummary.totalCost}
                       profitMarginRate={salesCostSummary.profitMarginRate}
                     />
@@ -568,9 +596,15 @@ export default function ReportsPage() {
                     </span>
                     <div className="flex flex-wrap items-baseline justify-end gap-x-4 gap-y-1 w-full sm:w-auto sm:ml-auto shrink-0">
                       <span className="text-xs tabular-nums">
-                        <span className="text-gray-400 mr-1">売上</span>
+                        <span className="text-gray-400 mr-1">入金</span>
                         <span className="font-semibold text-gray-900">
                           {formatCurrency(categoryTotals.totals[category])}
+                        </span>
+                      </span>
+                      <span className="text-xs tabular-nums">
+                        <span className="text-gray-400 mr-1">請求税込</span>
+                        <span className="font-semibold text-gray-900">
+                          {formatCurrency(categoryTotals.invoiceRevenueTotals[category])}
                         </span>
                       </span>
                       <span className="text-xs tabular-nums">
@@ -583,7 +617,8 @@ export default function ReportsPage() {
                         <span className="text-gray-400 mr-1">利益</span>
                         <span className="font-medium text-gray-800">
                           {formatCurrency(
-                            categoryTotals.totals[category] - categoryTotals.costTotals[category]
+                            categoryTotals.invoiceRevenueTotals[category] -
+                              categoryTotals.costTotals[category]
                           )}
                         </span>
                       </span>
@@ -599,12 +634,14 @@ export default function ReportsPage() {
               ))}
             </ul>
             <p className="px-5 sm:px-6 py-3 text-xs text-gray-500 border-t border-gray-100 bg-white">
-              チェックした区分の入金額・原価（税込）・利益・利益率を表示します。利益率は (売上 − 原価) ÷
-              売上（期間内入金ベース）。初期は全区分オン（総合計）です。
+              入金は期間内計上額、請求税込は対象請求の税込請求額の合計です。利益・利益率は請求税込ベース（請求税込 −
+              原価、利益率は ÷ 請求税込）。初期は全区分オン（総合計）です。
             </p>
           </CardContent>
         </Card>
       </div>
+
+      <ReportsAggregateHelpModal open={helpOpen} onOpenChange={setHelpOpen} />
     </AppLayout>
   );
 }

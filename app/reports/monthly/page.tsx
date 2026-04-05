@@ -155,7 +155,8 @@ export default function MonthlyReportsPage() {
   const salesCostSummary = useMemo(() => {
     if (!range) {
       return {
-        totalSales: 0,
+        totalPaidInPeriod: 0,
+        totalInvoiceRevenue: 0,
         totalCost: 0,
         profitMarginRate: undefined as number | undefined,
       };
@@ -484,7 +485,8 @@ export default function MonthlyReportsPage() {
                       </div>
                     </div>
                     <ReportSalesSummaryStats
-                      totalSales={salesCostSummary.totalSales}
+                      totalPaidInPeriod={salesCostSummary.totalPaidInPeriod}
+                      totalInvoiceRevenue={salesCostSummary.totalInvoiceRevenue}
                       totalCost={salesCostSummary.totalCost}
                       profitMarginRate={salesCostSummary.profitMarginRate}
                     />

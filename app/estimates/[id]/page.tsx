@@ -55,6 +55,7 @@ export default async function EstimateDetailPage({
               estimateId={estimate.id}
               propertyId={property?.id}
               customerId={customer?.id}
+              staffId={estimate.staff_id}
               amount={estimate.total}
               revenueCategory={estimate.revenue_category}
             />

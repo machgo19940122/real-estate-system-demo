@@ -71,13 +71,19 @@ export function CustomerEnvelopeLabelModal(props: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   customers: Customer[];
+  /** 顧客詳細など、同一顧客を複数枚印刷したいケース向け */
+  enableQuantity?: boolean;
+  defaultQuantity?: number;
 }) {
-  const { open, onOpenChange, customers } = props;
+  const { open, onOpenChange, customers, enableQuantity = false, defaultQuantity = 1 } = props;
   const [startSlot, setStartSlot] = useState(1);
+  const [quantity, setQuantity] = useState(defaultQuantity);
 
   useEffect(() => {
-    if (open) setStartSlot(1);
-  }, [open]);
+    if (!open) return;
+    setStartSlot(1);
+    setQuantity(Math.max(1, Math.floor(defaultQuantity) || 1));
+  }, [open, defaultQuantity]);
 
   useEffect(() => {
     const onAfterPrint = () => {
@@ -87,12 +93,21 @@ export function CustomerEnvelopeLabelModal(props: {
     return () => window.removeEventListener("afterprint", onAfterPrint);
   }, []);
 
+  const effectiveCustomers = useMemo(() => {
+    if (!enableQuantity) return customers;
+    const q = Math.max(1, Math.floor(quantity) || 1);
+    if (customers.length === 0) return [];
+    if (customers.length === 1) return Array.from({ length: q }, () => customers[0]);
+    // 複数選択にも対応（念のため）
+    return customers.flatMap((c) => Array.from({ length: q }, () => c));
+  }, [customers, enableQuantity, quantity]);
+
   const pages = useMemo(
-    () => buildLabelPages(customers, startSlot),
-    [customers, startSlot]
+    () => buildLabelPages(effectiveCustomers, startSlot),
+    [effectiveCustomers, startSlot]
   );
 
-  const missingAddress = customers.filter((c) => !c.address?.trim());
+  const missingAddress = effectiveCustomers.filter((c) => !c.address?.trim());
   const firstPageCapacity = 22 - Math.min(21, Math.max(1, startSlot));
   const { row: startRow, col: startCol } = slotRowCol(startSlot);
 
@@ -112,7 +127,7 @@ export function CustomerEnvelopeLabelModal(props: {
           <div>
             <h2 className="text-lg font-semibold text-gray-900">封筒ラベル印刷</h2>
             <p className="text-sm text-gray-500">
-              {customers.length}件 · 印刷はエーワン 72421（21面・70×42.3mm）用です
+              {effectiveCustomers.length}枚 · 印刷はエーワン 72421（21面・70×42.3mm）用です
             </p>
             <p className="mt-1 text-xs text-gray-500">
               拡大縮小なし・余白なし（最小）を推奨。ズレる場合はブラウザの印刷プレビューで調整してください。
@@ -134,6 +149,27 @@ export function CustomerEnvelopeLabelModal(props: {
               プレビュー：3列×7行（21面）
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2">
+              {enableQuantity && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <label htmlFor="label-quantity" className="text-xs font-medium text-gray-700">
+                    枚数
+                  </label>
+                  <input
+                    id="label-quantity"
+                    type="number"
+                    min={1}
+                    value={quantity}
+                    onChange={(e) => {
+                      const v = parseInt(e.target.value, 10);
+                      if (Number.isNaN(v)) setQuantity(1);
+                      else setQuantity(Math.max(1, v));
+                    }}
+                    className="w-16 rounded-md border border-gray-300 px-2 py-1.5 text-sm tabular-nums outline-none focus:ring-2 focus:ring-blue-500"
+                    aria-label="同じ宛名を印刷する枚数"
+                  />
+                  <span className="text-xs text-gray-500">（同じ宛名を複数枚印刷できます）</span>
+                </div>
+              )}
               <div className="flex flex-wrap items-center gap-2">
                 <label htmlFor="label-start-slot" className="text-xs font-medium text-gray-700">
                   1枚目の開始マス
@@ -156,7 +192,7 @@ export function CustomerEnvelopeLabelModal(props: {
                   （{startRow}段目・左から{startCol}列目）· 左上を1とした通し番号。2枚目以降は左上から。
                 </span>
               </div>
-              {startSlot > 1 && customers.length > 0 && (
+              {startSlot > 1 && effectiveCustomers.length > 0 && (
                 <p className="text-xs text-gray-500">
                   1枚目は最大 <strong>{firstPageCapacity}</strong> 件まで
                 </p>
@@ -239,7 +275,7 @@ export function CustomerEnvelopeLabelModal(props: {
             type="button"
             className="bg-gradient-to-r from-blue-600 to-blue-700 text-white"
             onClick={handlePrint}
-            disabled={customers.length === 0}
+            disabled={effectiveCustomers.length === 0}
           >
             <Printer className="mr-2 h-4 w-4" />
             印刷

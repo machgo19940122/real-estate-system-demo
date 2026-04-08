@@ -208,7 +208,8 @@ function NewInvoiceForm() {
                     defaultValue={presetRevenueCategory}
                   >
                     <option value="">選択してください</option>
-                    <option value="新築">新築</option>
+                    <option value="注文">注文</option>
+                    <option value="建売">建売</option>
                     <option value="リフォーム">リフォーム</option>
                     <option value="土地">土地</option>
                     <option value="仲介料">仲介料</option>

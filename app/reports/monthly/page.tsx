@@ -19,10 +19,10 @@ import { ReportSalesSummaryStats } from "@/components/report-sales-summary-stats
 import { Calendar, TrendingUp, FileText, Calculator } from "lucide-react";
 import Link from "next/link";
 
-const ALL_CATEGORIES: RevenueCategory[] = ["新築", "リフォーム", "土地", "仲介料"];
+const ALL_CATEGORIES: RevenueCategory[] = ["注文", "建売", "土地", "リフォーム", "仲介料"];
 
 function defaultSectionIncluded(): Record<RevenueCategory, boolean> {
-  return { 新築: true, リフォーム: true, 土地: true, 仲介料: true };
+  return { 注文: true, 建売: true, 土地: true, リフォーム: true, 仲介料: true };
 }
 
 export default function MonthlyReportsPage() {
@@ -108,8 +108,14 @@ export default function MonthlyReportsPage() {
   const categoryTotals = useMemo(() => {
     if (!range) {
       return {
-        totals: { 新築: 0, リフォーム: 0, 土地: 0, 仲介料: 0 } as Record<RevenueCategory, number>,
-        counts: { 新築: 0, リフォーム: 0, 土地: 0, 仲介料: 0 } as Record<RevenueCategory, number>,
+        totals: { 注文: 0, 建売: 0, 土地: 0, リフォーム: 0, 仲介料: 0 } as Record<
+          RevenueCategory,
+          number
+        >,
+        counts: { 注文: 0, 建売: 0, 土地: 0, リフォーム: 0, 仲介料: 0 } as Record<
+          RevenueCategory,
+          number
+        >,
       };
     }
     const isInRange = (dateStr: string) => {
@@ -117,13 +123,15 @@ export default function MonthlyReportsPage() {
       return d >= range.start && d < range.endExclusive;
     };
     const totals: Record<RevenueCategory, number> = {
-      新築: 0,
+      注文: 0,
+      建売: 0,
       リフォーム: 0,
       土地: 0,
       仲介料: 0,
     };
     const categoryCounts: Record<RevenueCategory, number> = {
-      新築: 0,
+      注文: 0,
+      建売: 0,
       リフォーム: 0,
       土地: 0,
       仲介料: 0,
@@ -175,14 +183,16 @@ export default function MonthlyReportsPage() {
   }, [periodInvoices, sectionIncluded, range]);
 
   const categoryLabels: Record<RevenueCategory, string> = {
-    新築: "新築",
+    注文: "注文",
+    建売: "建売",
     リフォーム: "リフォーム",
     土地: "土地",
     仲介料: "仲介料",
   };
 
   const categoryAccent: Record<RevenueCategory, string> = {
-    新築: "bg-blue-500",
+    注文: "bg-sky-500",
+    建売: "bg-blue-500",
     リフォーム: "bg-orange-500",
     土地: "bg-emerald-500",
     仲介料: "bg-purple-500",
@@ -521,7 +531,8 @@ export default function MonthlyReportsPage() {
                 disabled={isAggregating || aggregatePrimary}
                 onClick={() =>
                   setSectionIncluded({
-                    新築: false,
+                    注文: false,
+                    建売: false,
                     リフォーム: false,
                     土地: false,
                     仲介料: false,

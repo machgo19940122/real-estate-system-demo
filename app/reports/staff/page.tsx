@@ -129,7 +129,8 @@ export default function StaffReportsPage() {
             .filter((p) => isInRange(p.payment_date))
             .reduce((sum, p) => sum + p.amount, 0);
 
-          if (paidInPeriod === 0 && !isInRange(inv.created_at)) {
+          // 「集計」画面と同じく、期間内に入金がある請求のみを対象にする（未入金は利益計算に含めない）
+          if (paidInPeriod === 0) {
             return;
           }
 
@@ -145,8 +146,8 @@ export default function StaffReportsPage() {
           }
         });
 
-        const profitMarginOnPaid =
-          totalPaid > 0 ? (totalPaid - totalCostInTax) / totalPaid : undefined;
+        const profitMarginOnBilled =
+          totalBilled > 0 ? (totalBilled - totalCostInTax) / totalBilled : undefined;
 
         return {
           staff: s,
@@ -156,7 +157,7 @@ export default function StaffReportsPage() {
           totalUnpaid,
           unpaidCount,
           totalCostInTax,
-          profitMarginOnPaid,
+          profitMarginOnBilled,
         };
       })
       .filter((row): row is NonNullable<typeof row> => row !== null);
@@ -340,7 +341,7 @@ export default function StaffReportsPage() {
                   ? " · 全担当者"
                   : ` · ${staff.find((s) => String(s.id) === effectiveApplied.selectedStaffId)?.name ?? ""}`}
                 <span className="block mt-1 text-[11px] text-gray-400">
-                  原価は税込。担当者別の利益率は (期間内入金合計 − 原価合計) ÷ 期間内入金合計（集計画面と同じ考え方）。
+                  原価は税込。利益・利益率は「請求金額合計 − 原価合計」、利益率は「÷ 請求金額合計」（集計画面と同じ考え方）。
                 </span>
               </p>
             )}
@@ -413,10 +414,10 @@ export default function StaffReportsPage() {
                       {formatCurrency(row.totalCostInTax)}
                     </TableCell>
                     <TableCell className="text-right text-xs md:text-sm tabular-nums">
-                      {formatCurrency(row.totalPaid - row.totalCostInTax)}
+                      {formatCurrency(row.totalBilled - row.totalCostInTax)}
                     </TableCell>
                     <TableCell className="text-right text-xs md:text-sm tabular-nums">
-                      {formatProfitMarginRate(row.profitMarginOnPaid)}
+                      {formatProfitMarginRate(row.profitMarginOnBilled)}
                     </TableCell>
                     <TableCell className="text-right text-xs md:text-sm text-orange-700">
                       {formatCurrency(row.totalUnpaid)}
@@ -469,7 +470,7 @@ export default function StaffReportsPage() {
                     原価金額（税込）
                   </TableHead>
                   <TableHead className="font-semibold text-xs md:text-sm whitespace-nowrap text-right">
-                    利益額（期間内）
+                    利益額
                   </TableHead>
                   <TableHead className="font-semibold text-xs md:text-sm whitespace-nowrap text-right">
                     利益率
@@ -506,8 +507,8 @@ export default function StaffReportsPage() {
                       inv.cost_amount_including_tax ??
                       inv.cost_amount_excluding_tax ??
                       undefined;
-                    const profitInPeriod =
-                      invCost != null ? paidInPeriod - invCost : undefined;
+                    const profitOnBilled =
+                      invCost != null ? inv.amount - invCost : undefined;
                     const lastPayment =
                       paymentsInPeriod[paymentsInPeriod.length - 1];
 
@@ -546,7 +547,7 @@ export default function StaffReportsPage() {
                             : "未入力"}
                         </TableCell>
                         <TableCell className="text-right text-xs md:text-sm tabular-nums">
-                          {profitInPeriod != null ? formatCurrency(profitInPeriod) : "—"}
+                          {profitOnBilled != null ? formatCurrency(profitOnBilled) : "—"}
                         </TableCell>
                         <TableCell className="text-right text-xs md:text-sm tabular-nums">
                           {formatProfitMarginRate(invoiceProfitMarginRateForDisplay(inv))}

@@ -44,7 +44,10 @@ export default async function PropertyDetailPage({
 
   const estimateNewParams = new URLSearchParams();
   estimateNewParams.set("propertyId", String(property.id));
-  if (property.category) estimateNewParams.set("revenueCategory", property.category);
+  if (property.category) {
+    // 物件区分（注文/建売/土地）→ 売上区分（同じ5択）へ
+    estimateNewParams.set("revenueCategory", property.category);
+  }
   if (ownerCustomer) estimateNewParams.set("customerId", String(ownerCustomer.id));
   const estimateNewHref = `/estimates/new?${estimateNewParams.toString()}`;
 

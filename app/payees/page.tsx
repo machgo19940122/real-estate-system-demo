@@ -16,6 +16,7 @@ import { formatDate } from "@/lib/utils";
 import { loadPayees } from "@/lib/transfer-store";
 import {
   PAYEE_BANK_SELECT_OPTIONS,
+  PAYEE_MAIN_BANK_CODES,
   type PayeeBankFilterValue,
 } from "@/lib/payee-main-banks";
 import { Plus, Search, X } from "lucide-react";
@@ -27,8 +28,18 @@ export default function PayeesPage() {
   const [payees] = useState(() => loadPayees());
 
   const filtered = useMemo(() => {
-    let list =
-      bankFilter === "all" ? payees : payees.filter((p) => p.bank_code === bankFilter);
+    let list = payees;
+    if (bankFilter === "all") {
+      list = payees;
+    } else if (bankFilter === "others") {
+      list = payees.filter(
+        (p) =>
+          p.bank_code !== PAYEE_MAIN_BANK_CODES.fukuoka &&
+          p.bank_code !== PAYEE_MAIN_BANK_CODES.nishigin
+      );
+    } else {
+      list = payees.filter((p) => p.bank_code === bankFilter);
+    }
     if (!searchQuery.trim()) return list;
     const q = searchQuery.trim().toLowerCase();
     return list.filter((p) => {

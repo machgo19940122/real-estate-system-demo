@@ -92,7 +92,8 @@ export default function PropertiesPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
                 >
                   <option value="all">すべて</option>
-                  <option value="新築">新築</option>
+                  <option value="注文">注文</option>
+                  <option value="建売">建売</option>
                   <option value="土地">土地</option>
                 </select>
               </div>
@@ -137,7 +138,7 @@ export default function PropertiesPage() {
                     </TableCell>
                     <TableCell>
                       <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-50 text-blue-800">
-                        {property.category || "新築"}
+                        {property.category || "建売"}
                       </span>
                     </TableCell>
                     <TableCell>{property.address}</TableCell>

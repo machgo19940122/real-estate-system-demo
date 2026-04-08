@@ -20,11 +20,17 @@ import {
 } from "@/lib/transfer-store";
 import { isInsuranceDeductionEnabled, previewTransferAmount } from "@/lib/payee-transfer-amount";
 import { staff } from "@/src/data/mock";
+import {
+  PAYEE_BANK_SELECT_OPTIONS,
+  PAYEE_MAIN_BANK_CODES,
+  type PayeeBankFilterValue,
+} from "@/lib/payee-main-banks";
 
 const INPUT =
   "w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white";
 
 type DraftRow = {
+  bank_filter: PayeeBankFilterValue;
   payee_id: string;
   amount: string;
   description_kana: string;
@@ -47,12 +53,24 @@ export function TransferBatchEditClient({ id }: { id: number }) {
   );
   const [rows, setRows] = useState<DraftRow[]>(
     batchItems.length > 0
-      ? batchItems.map((it) => ({
-          payee_id: String(it.payee_id),
-          amount: String(it.billing_gross_amount ?? it.amount),
-          description_kana: it.description_kana ?? "",
-        }))
-      : [{ payee_id: String(payees[0]?.id ?? ""), amount: "", description_kana: "" }]
+      ? batchItems.map((it) => {
+          const p = payees.find((x) => x.id === it.payee_id);
+          const bank_filter: PayeeBankFilterValue =
+            p?.bank_code === PAYEE_MAIN_BANK_CODES.fukuoka
+              ? PAYEE_MAIN_BANK_CODES.fukuoka
+              : p?.bank_code === PAYEE_MAIN_BANK_CODES.nishigin
+                ? PAYEE_MAIN_BANK_CODES.nishigin
+                : p
+                  ? "others"
+                  : "all";
+          return {
+            bank_filter,
+            payee_id: String(it.payee_id),
+            amount: String(it.billing_gross_amount ?? it.amount),
+            description_kana: it.description_kana ?? "",
+          };
+        })
+      : [{ bank_filter: "all", payee_id: "", amount: "", description_kana: "" }]
   );
 
   const payeeById = useMemo(() => new Map(payees.map((p) => [p.id, p])), [payees]);
@@ -83,7 +101,7 @@ export function TransferBatchEditClient({ id }: { id: number }) {
   const addRow = () => {
     setRows((prev) => [
       ...prev,
-      { payee_id: String(payees[0]?.id ?? ""), amount: "", description_kana: "" },
+      { bank_filter: "all", payee_id: "", amount: "", description_kana: "" },
     ]);
   };
 
@@ -91,6 +109,18 @@ export function TransferBatchEditClient({ id }: { id: number }) {
 
   const updateRow = (idx: number, patch: Partial<DraftRow>) => {
     setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+  };
+
+  const getPayeesForRow = (row: DraftRow) => {
+    if (row.bank_filter === "all") return payees;
+    if (row.bank_filter === "others") {
+      return payees.filter(
+        (p) =>
+          p.bank_code !== PAYEE_MAIN_BANK_CODES.fukuoka &&
+          p.bank_code !== PAYEE_MAIN_BANK_CODES.nishigin
+      );
+    }
+    return payees.filter((p) => p.bank_code === row.bank_filter);
   };
 
   const handleSave = (e: React.FormEvent) => {
@@ -285,8 +315,7 @@ export function TransferBatchEditClient({ id }: { id: number }) {
                   <div>
                     <p className="text-sm font-semibold text-gray-900">振込明細</p>
                     <p className="text-xs text-gray-500 mt-1">
-                      コンボで「差引あり」の振込先は請求額を入力します（⌊×0.003⌋
-                      を切り捨てて保険として差し引いた額が振込額になります）。
+                      「差引あり」の振込先は、金額欄に請求額を入力します（保険として ⌊請求額×0.003⌋ を差し引いた額が振込額になります）。
                     </p>
                   </div>
                   <Button type="button" variant="outline" onClick={addRow}>
@@ -310,13 +339,49 @@ export function TransferBatchEditClient({ id }: { id: number }) {
                     <div key={idx} className="grid gap-3 md:grid-cols-12 items-end">
                       <div className="md:col-span-5 space-y-2">
                         <label className="text-xs font-medium text-gray-700">振込先</label>
-                        <PayeeCombobox
-                          payees={payees}
-                          value={r.payee_id}
-                          onChange={(next) => updateRow(idx, { payee_id: next })}
-                          placeholder="振込先名で検索"
-                          ariaLabel="振込先を検索して選択"
-                        />
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={r.bank_filter}
+                            onChange={(e) => {
+                              const next = e.target.value as PayeeBankFilterValue;
+                              const nextPayees = (() => {
+                                if (next === "all") return payees;
+                                if (next === "others") {
+                                  return payees.filter(
+                                    (p) =>
+                                      p.bank_code !== PAYEE_MAIN_BANK_CODES.fukuoka &&
+                                      p.bank_code !== PAYEE_MAIN_BANK_CODES.nishigin
+                                  );
+                                }
+                                return payees.filter((p) => p.bank_code === next);
+                              })();
+                              const stillValid = r.payee_id
+                                ? nextPayees.some((p) => String(p.id) === r.payee_id)
+                                : true;
+                              updateRow(idx, {
+                                bank_filter: next,
+                                payee_id: stillValid ? r.payee_id : "",
+                              });
+                            }}
+                            className="h-11 py-2 px-3 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all shrink-0 w-[140px]"
+                            aria-label="銀行で絞り込み"
+                          >
+                            {PAYEE_BANK_SELECT_OPTIONS.map((opt) => (
+                              <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
+                          <div className="min-w-0 flex-1">
+                            <PayeeCombobox
+                              payees={getPayeesForRow(r)}
+                              value={r.payee_id}
+                              onChange={(next) => updateRow(idx, { payee_id: next })}
+                              placeholder="振込先名で検索"
+                              ariaLabel="振込先を検索して選択"
+                            />
+                          </div>
+                        </div>
                       </div>
                       <div className="md:col-span-3 space-y-2">
                         <label className="text-xs font-medium text-gray-700">

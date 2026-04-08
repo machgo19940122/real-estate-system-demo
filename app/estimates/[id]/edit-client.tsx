@@ -162,7 +162,8 @@ export function EstimateEditClient({
                   className="mt-1 w-full max-w-[220px] px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
                 >
                   <option value="">選択してください</option>
-                  <option value="新築">新築</option>
+                  <option value="注文">注文</option>
+                  <option value="建売">建売</option>
                   <option value="リフォーム">リフォーム</option>
                   <option value="土地">土地</option>
                   <option value="仲介料">仲介料</option>

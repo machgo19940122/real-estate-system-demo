@@ -24,7 +24,7 @@ export interface NegotiationHistory {
   entered_by: string;
 }
 
-export type PropertyCategory = "新築" | "土地";
+export type PropertyCategory = "注文" | "建売" | "土地";
 
 export interface Property {
   id: number;
@@ -124,7 +124,7 @@ export interface Payment {
 }
 
 // 売上区分
-export type RevenueCategory = "新築" | "リフォーム" | "土地" | "仲介料";
+export type RevenueCategory = "注文" | "建売" | "土地" | "リフォーム" | "仲介料";
 
 // 案件（見積・請求の紐づけ用。顧客・物件・担当者・区分をまとめる）
 export type ProjectType = "新築売買" | "中古売買" | "仲介" | "リフォーム";
@@ -159,7 +159,7 @@ export type StaffRole = "管理者" | "営業" | "事務" | "現場監督";
 export function getInvoiceRevenueCategory(invoice: Invoice): RevenueCategory {
   if (invoice.revenue_category) return invoice.revenue_category;
   const project = projects.find((p) => p.id === invoice.project_id);
-  if (!project) return "新築";
+  if (!project) return "注文";
   return getRevenueCategory(project.type);
 }
 
@@ -306,7 +306,7 @@ export const properties: Property[] = [
     name: "渋谷マンションA",
     address: "東京都渋谷区神南1-1-1",
     owner: "田中太郎",
-    category: "新築",
+    category: "建売",
     created_at: "2025-01-20",
   },
   {
@@ -314,7 +314,7 @@ export const properties: Property[] = [
     name: "世田谷戸建",
     address: "東京都世田谷区三軒茶屋2-2-2",
     owner: "株式会社サンプル",
-    category: "新築",
+    category: "注文",
     created_at: "2025-02-05",
   },
   {
@@ -322,7 +322,7 @@ export const properties: Property[] = [
     name: "新宿アパート",
     address: "東京都新宿区西新宿3-3-3",
     owner: "佐藤花子",
-    category: "新築",
+    category: "建売",
     created_at: "2025-02-15",
   },
   {
@@ -338,7 +338,7 @@ export const properties: Property[] = [
     name: "目黒区新築一戸建",
     address: "東京都目黒区目黒5-5-5",
     owner: "高橋美咲",
-    category: "新築",
+    category: "注文",
     created_at: "2025-03-05",
   },
   {
@@ -346,7 +346,7 @@ export const properties: Property[] = [
     name: "品川オフィスビル",
     address: "東京都品川区大崎6-6-6",
     owner: "株式会社建設丸",
-    category: "新築",
+    category: "建売",
     created_at: "2025-03-10",
   },
   {
@@ -354,7 +354,7 @@ export const properties: Property[] = [
     name: "渋谷マンションB",
     address: "東京都渋谷区道玄坂1-2-3",
     owner: "田中太郎",
-    category: "新築",
+    category: "注文",
     created_at: "2025-03-15",
   },
   {
@@ -386,15 +386,15 @@ export const projects: Project[] = [
 // 見積：全区分・複数顧客・複数担当者。revenue_category を明示。
 export const estimates: Estimate[] = [
   { id: 1, project_id: 1, estimate_number: "EST-001", staff_id: 2, revenue_category: "リフォーム", note: "現地調査は完了。色味はグレー系希望。", subtotal: 500000, tax: 50000, total: 550000, created_at: "2025-03-07", items: [{ id: 1, name: "内装リフォーム工事", quantity: 1, unit_price: 300000, amount: 300000 }, { id: 2, name: "キッチン交換", quantity: 1, unit_price: 200000, amount: 200000 }] },
-  { id: 2, project_id: 2, estimate_number: "EST-002", staff_id: 2, revenue_category: "新築", note: "重要事項説明の予定調整中。", subtotal: 180000000, tax: 18000000, total: 198000000, created_at: "2025-03-08", items: [{ id: 3, name: "新築戸建売買", quantity: 1, unit_price: 180000000, amount: 180000000 }] },
+  { id: 2, project_id: 2, estimate_number: "EST-002", staff_id: 2, revenue_category: "建売", note: "重要事項説明の予定調整中。", subtotal: 180000000, tax: 18000000, total: 198000000, created_at: "2025-03-08", items: [{ id: 3, name: "建売戸建売買", quantity: 1, unit_price: 180000000, amount: 180000000 }] },
   { id: 3, project_id: 3, estimate_number: "EST-003", staff_id: 3, revenue_category: "仲介料", subtotal: 25000000, tax: 2500000, total: 27500000, created_at: "2025-03-12", items: [{ id: 4, name: "仲介手数料", quantity: 1, unit_price: 25000000, amount: 25000000 }] },
   { id: 4, project_id: 5, estimate_number: "EST-004", staff_id: 5, revenue_category: "リフォーム", note: "既存設備の撤去範囲は別途確定。", subtotal: 800000, tax: 80000, total: 880000, created_at: "2025-03-16", items: [{ id: 5, name: "キッチンリフォーム工事", quantity: 1, unit_price: 800000, amount: 800000 }] },
   { id: 5, project_id: 4, estimate_number: "EST-005", staff_id: 2, revenue_category: "土地", subtotal: 350000000, tax: 35000000, total: 385000000, created_at: "2025-03-01", items: [{ id: 6, name: "中古マンション売買", quantity: 1, unit_price: 350000000, amount: 350000000 }] },
-  { id: 6, project_id: 6, estimate_number: "EST-006", staff_id: 2, revenue_category: "新築", subtotal: 45000000, tax: 4500000, total: 49500000, created_at: "2026-02-15", items: [{ id: 7, name: "新築一戸建", quantity: 1, unit_price: 45000000, amount: 45000000 }] },
+  { id: 6, project_id: 6, estimate_number: "EST-006", staff_id: 2, revenue_category: "注文", subtotal: 45000000, tax: 4500000, total: 49500000, created_at: "2026-02-15", items: [{ id: 7, name: "注文住宅", quantity: 1, unit_price: 45000000, amount: 45000000 }] },
   { id: 7, project_id: 7, estimate_number: "EST-007", staff_id: 5, revenue_category: "リフォーム", subtotal: 1200000, tax: 120000, total: 1320000, created_at: "2026-02-25", items: [{ id: 8, name: "オフィスリノベーション", quantity: 1, unit_price: 1200000, amount: 1200000 }] },
   { id: 8, project_id: 8, estimate_number: "EST-008", staff_id: 3, revenue_category: "土地", note: "測量図の受領待ち。", subtotal: 95000000, tax: 9500000, total: 104500000, created_at: "2026-03-01", items: [{ id: 9, name: "土地売買", quantity: 1, unit_price: 95000000, amount: 95000000 }] },
   { id: 9, project_id: 9, estimate_number: "EST-009", staff_id: 3, revenue_category: "仲介料", subtotal: 18000000, tax: 1800000, total: 19800000, created_at: "2026-03-05", items: [{ id: 10, name: "仲介手数料", quantity: 1, unit_price: 18000000, amount: 18000000 }] },
-  { id: 10, project_id: 10, estimate_number: "EST-010", staff_id: 2, revenue_category: "新築", note: "住宅ローン事前審査中。", subtotal: 60000000, tax: 6000000, total: 66000000, created_at: "2026-03-08", items: [{ id: 11, name: "新築マンション", quantity: 1, unit_price: 60000000, amount: 60000000 }] },
+  { id: 10, project_id: 10, estimate_number: "EST-010", staff_id: 2, revenue_category: "建売", note: "住宅ローン事前審査中。", subtotal: 60000000, tax: 6000000, total: 66000000, created_at: "2026-03-08", items: [{ id: 11, name: "建売マンション", quantity: 1, unit_price: 60000000, amount: 60000000 }] },
   { id: 11, project_id: 11, estimate_number: "EST-011", staff_id: 3, revenue_category: "仲介料", subtotal: 12000000, tax: 1200000, total: 13200000, created_at: "2026-03-12", items: [{ id: 12, name: "土地仲介手数料", quantity: 1, unit_price: 12000000, amount: 12000000 }] },
   { id: 12, project_id: 12, estimate_number: "EST-012", staff_id: 5, revenue_category: "リフォーム", note: "雨天時は日程再調整。", subtotal: 350000, tax: 35000, total: 385000, created_at: "2026-03-18", items: [{ id: 13, name: "外装リフォーム", quantity: 1, unit_price: 350000, amount: 350000 }] },
 ];
@@ -429,12 +429,12 @@ export const invoices: Invoice[] = [
     due_date: "2025-05-10",
     status: "無し",
     created_at: "2025-03-08",
-    revenue_category: "新築",
+    revenue_category: "建売",
     cost_amount_including_tax: 165000000,
     cost_amount_excluding_tax: 150000000,
     cost_rate: 165000000 / 198000000,
     profit_margin_rate: (198000000 - 165000000) / 198000000,
-    items: [{ id: 1, name: "新築戸建売買", quantity: 1, unit_price: 180000000, amount: 180000000 }],
+    items: [{ id: 1, name: "建売戸建売買", quantity: 1, unit_price: 180000000, amount: 180000000 }],
   },
   {
     id: 3,
@@ -490,12 +490,12 @@ export const invoices: Invoice[] = [
     due_date: "2026-04-10",
     status: "有",
     created_at: "2026-02-15",
-    revenue_category: "新築",
+    revenue_category: "注文",
     cost_amount_including_tax: 41800000,
     cost_amount_excluding_tax: 38000000,
     cost_rate: 41800000 / 49500000,
     profit_margin_rate: (49500000 - 41800000) / 49500000,
-    items: [{ id: 1, name: "新築一戸建", quantity: 1, unit_price: 45000000, amount: 45000000 }],
+    items: [{ id: 1, name: "注文住宅", quantity: 1, unit_price: 45000000, amount: 45000000 }],
   },
   {
     id: 7,
@@ -703,7 +703,8 @@ export function updateInvoice(
 export function getRevenueCategory(projectType: ProjectType): RevenueCategory {
   switch (projectType) {
     case "新築売買":
-      return "新築";
+      // デモ都合: 新築売買は「建売」に寄せる（売上区分の5択に合わせる）
+      return "建売";
     case "中古売買":
       return "土地";
     case "仲介":
@@ -751,7 +752,7 @@ export function calculateInvoiceStatus(invoice: Invoice): PaymentStatus {
 
 // 月次集計モック（参照用。実際の集計は入金日ベースで算出）
 export const monthlySummaries: MonthlySummary[] = [
-  { id: 1, year: 2025, month: 3, category: "新築", amount: 0, invoice_count: 0, created_at: "2025-03-31", is_closed: false },
+  { id: 1, year: 2025, month: 3, category: "建売", amount: 0, invoice_count: 0, created_at: "2025-03-31", is_closed: false },
   { id: 2, year: 2025, month: 3, category: "リフォーム", amount: 550000, invoice_count: 1, created_at: "2025-03-31", closed_at: "2025-03-31", is_closed: true },
   { id: 3, year: 2025, month: 3, category: "土地", amount: 385000000, invoice_count: 1, created_at: "2025-03-31", closed_at: "2025-03-31", is_closed: true },
   { id: 4, year: 2025, month: 3, category: "仲介料", amount: 0, invoice_count: 0, created_at: "2025-03-31", is_closed: false },
@@ -922,6 +923,34 @@ const PAYEES_SEED: Payee[] = [
     is_active: true,
     created_at: "2026-03-12",
     insurance_deduction_enabled: true,
+  },
+  {
+    id: 5,
+    name: "株式会社 その他銀行サンプル（外注）",
+    bank_code: "0005",
+    bank_name_kana: "ﾐﾂｲｽﾐﾄﾓ",
+    branch_code: "123",
+    branch_name_kana: "ﾌｸｵｶ",
+    account_type: "普通",
+    account_number: "1234567",
+    account_name_kana: "ｶﾌﾞ)ｿﾉﾀｷﾞﾝｺｳｻﾝﾌﾟﾙ",
+    memo: "（その他）フィルタ表示確認用",
+    is_active: true,
+    created_at: "2026-03-14",
+  },
+  {
+    id: 6,
+    name: "個人 その他銀行サンプル",
+    bank_code: "0001",
+    bank_name_kana: "ﾐｽﾞﾎ",
+    branch_code: "456",
+    branch_name_kana: "ﾊｶﾀ",
+    account_type: "普通",
+    account_number: "7654321",
+    account_name_kana: "ﾔﾏﾀﾞﾀﾛｳ",
+    memo: "（その他）検索・選択のデモ用",
+    is_active: true,
+    created_at: "2026-03-16",
   },
 ];
 

@@ -37,7 +37,8 @@ import { Separator } from "@/components/ui/separator";
 
 const REVENUE_CATEGORY_OPTIONS: { value: RevenueCategory | ""; label: string }[] = [
   { value: "", label: "全区分" },
-  { value: "新築", label: "新築" },
+  { value: "注文", label: "注文" },
+  { value: "建売", label: "建売" },
   { value: "リフォーム", label: "リフォーム" },
   { value: "土地", label: "土地" },
   { value: "仲介料", label: "仲介料" },

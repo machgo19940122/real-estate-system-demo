@@ -3,14 +3,16 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Building2, Calendar, Mail, MapPin, Pencil, Phone, Save, X } from "lucide-react";
+import { Building2, Calendar, Mail, MapPin, Pencil, Phone, Printer, Save, X } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { type Customer } from "@/src/data/mock";
+import { CustomerEnvelopeLabelModal } from "@/components/customer-envelope-label-modal";
 
 export function CustomerDetailClient({ initialCustomer }: { initialCustomer: Customer }) {
   const [customer, setCustomer] = useState<Customer>(initialCustomer);
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState<Customer>(initialCustomer);
+  const [labelModalOpen, setLabelModalOpen] = useState(false);
 
   const canSave = useMemo(() => {
     return (
@@ -59,10 +61,16 @@ export function CustomerDetailClient({ initialCustomer }: { initialCustomer: Cus
             基本情報・請求関連
           </CardTitle>
           {!isEditing ? (
-            <Button onClick={startEdit} variant="outline" size="sm">
-              <Pencil className="h-4 w-4 mr-2" />
-              編集
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button onClick={() => setLabelModalOpen(true)} variant="outline" size="sm">
+                <Printer className="h-4 w-4 mr-2" />
+                封筒ラベル印刷
+              </Button>
+              <Button onClick={startEdit} variant="outline" size="sm">
+                <Pencil className="h-4 w-4 mr-2" />
+                編集
+              </Button>
+            </div>
           ) : (
             <div className="flex items-center gap-2">
               <Button onClick={cancelEdit} variant="outline" size="sm">
@@ -220,6 +228,14 @@ export function CustomerDetailClient({ initialCustomer }: { initialCustomer: Cus
           </div>
         </div>
       </CardContent>
+
+      <CustomerEnvelopeLabelModal
+        open={labelModalOpen}
+        onOpenChange={setLabelModalOpen}
+        customers={[customer]}
+        enableQuantity
+        defaultQuantity={1}
+      />
     </Card>
   );
 }

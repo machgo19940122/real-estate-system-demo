@@ -34,21 +34,23 @@ import { formatProfitMarginRate } from "@/lib/invoice-cost-metrics";
 import { ArrowLeft, Download, Lock, CheckCircle, TrendingUp, ChevronDown, ChevronUp } from "lucide-react";
 import Link from "next/link";
 
-const ALL_CATEGORIES: RevenueCategory[] = ["新築", "リフォーム", "土地", "仲介料"];
+const ALL_CATEGORIES: RevenueCategory[] = ["注文", "建売", "土地", "リフォーム", "仲介料"];
 
 function defaultSectionIncluded(): Record<RevenueCategory, boolean> {
-  return { 新築: true, リフォーム: true, 土地: true, 仲介料: true };
+  return { 注文: true, 建売: true, 土地: true, リフォーム: true, 仲介料: true };
 }
 
 const categoryAccent: Record<RevenueCategory, string> = {
-  新築: "bg-blue-500",
+  注文: "bg-sky-500",
+  建売: "bg-blue-500",
   リフォーム: "bg-orange-500",
   土地: "bg-emerald-500",
   仲介料: "bg-purple-500",
 };
 
 const categoryChipClass: Record<RevenueCategory, string> = {
-  新築: "bg-blue-50 text-blue-700 border-blue-200",
+  注文: "bg-sky-50 text-sky-700 border-sky-200",
+  建売: "bg-blue-50 text-blue-700 border-blue-200",
   リフォーム: "bg-orange-50 text-orange-700 border-orange-200",
   土地: "bg-emerald-50 text-emerald-700 border-emerald-200",
   仲介料: "bg-purple-50 text-purple-700 border-purple-200",
@@ -120,7 +122,8 @@ export function MonthlyReportDetailClient({
   // 売上区分別集計（サマリー用）
   const invoicesByCategory = useMemo(() => {
     const grouped: Record<RevenueCategory, typeof monthlyInvoices> = {
-      新築: [],
+      注文: [],
+      建売: [],
       リフォーム: [],
       土地: [],
       仲介料: [],
@@ -139,13 +142,14 @@ export function MonthlyReportDetailClient({
 
   // 区分別集計（金額・件数）
   const categoryTotals = useMemo(() => {
-    const totals: Record<RevenueCategory, number> = { 新築: 0, リフォーム: 0, 土地: 0, 仲介料: 0 };
-    const counts: Record<RevenueCategory, number> = { 新築: 0, リフォーム: 0, 土地: 0, 仲介料: 0 };
-    const costTotals: Record<RevenueCategory, number> = { 新築: 0, リフォーム: 0, 土地: 0, 仲介料: 0 };
+    const totals: Record<RevenueCategory, number> = { 注文: 0, 建売: 0, 土地: 0, リフォーム: 0, 仲介料: 0 };
+    const counts: Record<RevenueCategory, number> = { 注文: 0, 建売: 0, 土地: 0, リフォーム: 0, 仲介料: 0 };
+    const costTotals: Record<RevenueCategory, number> = { 注文: 0, 建売: 0, 土地: 0, リフォーム: 0, 仲介料: 0 };
     const invoiceRevenueTotals: Record<RevenueCategory, number> = {
-      新築: 0,
-      リフォーム: 0,
+      注文: 0,
+      建売: 0,
       土地: 0,
+      リフォーム: 0,
       仲介料: 0,
     };
 
@@ -270,7 +274,8 @@ export function MonthlyReportDetailClient({
   };
 
   const categoryLabels: Record<RevenueCategory, string> = {
-    新築: "新築",
+    注文: "注文",
+    建売: "建売",
     リフォーム: "リフォーム",
     土地: "土地",
     仲介料: "仲介料",
@@ -417,7 +422,8 @@ export function MonthlyReportDetailClient({
                     className="h-8 text-xs"
                     onClick={() =>
                       setSectionIncluded({
-                        新築: false,
+                        注文: false,
+                        建売: false,
                         リフォーム: false,
                         土地: false,
                         仲介料: false,

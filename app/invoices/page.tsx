@@ -45,6 +45,13 @@ const REVENUE_CATEGORY_OPTIONS: { value: RevenueCategory | ""; label: string }[]
   { value: "仲介料", label: "仲介料" },
 ];
 import { formatCurrency, formatDate, getPaymentStatusChipClassName } from "@/lib/utils";
+import { issueInvoicePdfDemo } from "@/lib/invoice-pdf-demo";
+import {
+  getInvoiceBillingAddresseeDisplayName,
+  getInvoiceBillingSearchTexts,
+  matchesInvoiceSearchText,
+  normalizeInvoiceSearchQuery,
+} from "@/lib/customer-billing";
 import { FileDown, Search, X, Plus } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -69,6 +76,7 @@ function InvoicesPageContent() {
   const [periodHalf, setPeriodHalf] = useState<HalfKey>("H1");
   const [customFrom, setCustomFrom] = useState<string>("");
   const [customTo, setCustomTo] = useState<string>("");
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   const jumpToThisMonth = () => {
     const d = new Date();
@@ -131,10 +139,15 @@ function InvoicesPageContent() {
       list = list.filter((inv) => inv.status === statusFilter);
     }
     if (!searchQuery.trim()) return list;
-    const query = searchQuery.toLowerCase();
+    const query = normalizeInvoiceSearchQuery(searchQuery);
     return list.filter((invoice) => {
       const project = projects.find((p) => p.id === (invoice as any).project_id);
-      const customer = project ? getCustomerById(project.customer_id) : undefined;
+      const customer =
+        invoice.customer_id != null
+          ? getCustomerById(invoice.customer_id)
+          : project
+            ? getCustomerById(project.customer_id)
+            : undefined;
       const property = project ? getPropertyById(project.property_id) : undefined;
       const invoiceStaffId = getInvoiceStaffId(invoice);
       const staffMember =
@@ -142,17 +155,66 @@ function InvoicesPageContent() {
       const paymentStatus = calculateInvoiceStatus(invoice);
       const manualStatus = invoice.status;
       const manualStatusLabel = manualStatus === "有" ? "黄色有" : "黄色無し";
+      const billingTexts = getInvoiceBillingSearchTexts(invoice, customer);
       return (
-        invoice.invoice_number.toLowerCase().includes(query) ||
-        customer?.name.toLowerCase().includes(query) ||
-        property?.name.toLowerCase().includes(query) ||
-        staffMember?.name.toLowerCase().includes(query) ||
-        paymentStatus.includes(query) ||
-        manualStatus.includes(query) ||
-        manualStatusLabel.toLowerCase().includes(query)
+        matchesInvoiceSearchText(invoice.invoice_number, query) ||
+        billingTexts.some((t) => matchesInvoiceSearchText(t, query)) ||
+        matchesInvoiceSearchText(property?.name ?? "", query) ||
+        matchesInvoiceSearchText(staffMember?.name ?? "", query) ||
+        matchesInvoiceSearchText(paymentStatus, query) ||
+        matchesInvoiceSearchText(manualStatus, query) ||
+        matchesInvoiceSearchText(manualStatusLabel, query)
       );
     });
   }, [searchQuery, categoryFilter, statusFilter, periodRange]);
+
+  const filteredIds = useMemo(
+    () => filteredInvoices.map((inv) => inv.id),
+    [filteredInvoices]
+  );
+
+  const allFilteredSelected =
+    filteredIds.length > 0 && filteredIds.every((id) => selectedIds.has(id));
+
+  const selectedCount = useMemo(
+    () => filteredInvoices.filter((inv) => selectedIds.has(inv.id)).length,
+    [filteredInvoices, selectedIds]
+  );
+
+  const selectedInvoiceNumbers = useMemo(
+    () =>
+      filteredInvoices
+        .filter((inv) => selectedIds.has(inv.id))
+        .map((inv) => inv.invoice_number),
+    [filteredInvoices, selectedIds]
+  );
+
+  const toggleSelectAllFiltered = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allFilteredSelected) {
+        filteredIds.forEach((id) => next.delete(id));
+      } else {
+        filteredIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectOne = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const handleBulkPdf = () => {
+    issueInvoicePdfDemo(selectedInvoiceNumbers);
+  };
 
   return (
     <AppLayout>
@@ -181,7 +243,7 @@ function InvoicesPageContent() {
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="請求番号、顧客名、物件名、担当者名、ステータス、入金状況で検索..."
+                    placeholder="請求番号、請求宛先名、物件名、担当者名、ステータス、入金状況で検索..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all shadow-sm"
@@ -384,14 +446,48 @@ function InvoicesPageContent() {
 
         <Card className="border-0 shadow-lg">
           <CardHeader className="border-b">
-            <CardTitle>請求一覧</CardTitle>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <CardTitle>請求一覧</CardTitle>
+              <div className="flex flex-wrap items-center gap-2">
+                {selectedCount > 0 && (
+                  <span className="text-sm text-gray-600 tabular-nums">
+                    {selectedCount}件選択中
+                  </span>
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={selectedCount === 0}
+                  onClick={handleBulkPdf}
+                >
+                  <FileDown className="h-4 w-4 mr-2" />
+                  請求書PDFを発行
+                </Button>
+                {selectedCount > 0 && (
+                  <Button type="button" variant="ghost" size="sm" onClick={clearSelection}>
+                    選択解除
+                  </Button>
+                )}
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             <Table>
               <TableHeader>
                 <TableRow className="bg-gray-50/50">
+                  <TableHead className="w-10 px-3">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      checked={allFilteredSelected}
+                      disabled={filteredIds.length === 0}
+                      onChange={toggleSelectAllFiltered}
+                      aria-label="表示中の請求をすべて選択"
+                    />
+                  </TableHead>
                   <TableHead className="font-semibold">請求番号</TableHead>
-                  <TableHead className="font-semibold">顧客</TableHead>
+                  <TableHead className="font-semibold">請求宛先</TableHead>
                   <TableHead className="font-semibold">物件</TableHead>
                   <TableHead className="font-semibold">担当者</TableHead>
                   <TableHead className="font-semibold">区分</TableHead>
@@ -407,7 +503,12 @@ function InvoicesPageContent() {
                 {filteredInvoices.length > 0 ? (
                   filteredInvoices.map((invoice) => {
                   const project = projects.find((p) => p.id === (invoice as any).project_id);
-                  const customer = project ? getCustomerById(project.customer_id) : undefined;
+                  const customer =
+        invoice.customer_id != null
+          ? getCustomerById(invoice.customer_id)
+          : project
+            ? getCustomerById(project.customer_id)
+            : undefined;
                   const property = project ? getPropertyById(project.property_id) : undefined;
                   const invoiceStaffId = getInvoiceStaffId(invoice);
                   const staffMember =
@@ -419,8 +520,19 @@ function InvoicesPageContent() {
                   return (
                     <TableRow
                       key={invoice.id}
-                      className="hover:bg-gray-50/50 transition-colors"
+                      className={`hover:bg-gray-50/50 transition-colors ${
+                        selectedIds.has(invoice.id) ? "bg-blue-50/40" : ""
+                      }`}
                     >
+                      <TableCell className="px-3">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          checked={selectedIds.has(invoice.id)}
+                          onChange={() => toggleSelectOne(invoice.id)}
+                          aria-label={`${invoice.invoice_number}を選択`}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">
                         <Link
                           href={`/invoices/${invoice.id}`}
@@ -431,14 +543,21 @@ function InvoicesPageContent() {
                       </TableCell>
                       <TableCell>
                         {customer ? (
-                          <Link
-                            href={`/customers/${customer.id}`}
-                            className="text-gray-700 hover:text-blue-600 hover:underline"
-                          >
-                            {customer.name}
-                          </Link>
+                          <div className="min-w-0">
+                            <Link
+                              href={`/customers/${customer.id}`}
+                              className="text-gray-700 hover:text-blue-600 hover:underline font-medium"
+                            >
+                              {getInvoiceBillingAddresseeDisplayName(invoice, customer)}
+                            </Link>
+                            {invoice.billing_addressee_name?.trim() && (
+                              <p className="text-[11px] text-gray-500 mt-0.5 truncate">
+                                顧客: {customer.name}
+                              </p>
+                            )}
+                          </div>
                         ) : (
-                          "-"
+                          getInvoiceBillingAddresseeDisplayName(invoice, undefined) || "-"
                         )}
                       </TableCell>
                       <TableCell>
@@ -501,9 +620,7 @@ function InvoicesPageContent() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => {
-                            alert(`請求書発行（PDF / ダミー）: ${invoice.invoice_number}`);
-                          }}
+                          onClick={() => issueInvoicePdfDemo([invoice.invoice_number])}
                         >
                           <FileDown className="h-4 w-4 mr-2" />
                           PDF出力
@@ -514,7 +631,7 @@ function InvoicesPageContent() {
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={11} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={12} className="text-center py-8 text-gray-500">
                       検索結果が見つかりませんでした
                     </TableCell>
                   </TableRow>

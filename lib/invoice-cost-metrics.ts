@@ -96,18 +96,75 @@ export function previewProfitAmountIncludingTax(
   return Math.max(0, sales - Math.max(0, Math.floor(cost)));
 }
 
+export type InvoiceCostPatch = Partial<
+  Pick<
+    Invoice,
+    | "cost_amount_including_tax"
+    | "cost_rate"
+    | "profit_margin_rate"
+    | "cost_amount_updated_at"
+  >
+>;
+
+/** 保存用: 原価更新日時（クライアントのローカル時刻） */
+export function costAmountUpdatedAtNow(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+/** ヘルパー表示用（例: 最終更新: 2026/06/04 15:30） */
+export function formatInvoiceCostAmountUpdatedAtLine(
+  updatedAt?: string | null
+): string | null {
+  if (!updatedAt?.trim()) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/.exec(updatedAt.trim());
+  if (m) {
+    return `最終更新: ${m[1]}/${m[2]}/${m[3]} ${m[4]}:${m[5]}`;
+  }
+  const d = new Date(updatedAt);
+  if (Number.isNaN(d.getTime())) return null;
+  const parts = d.toLocaleString("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  return `最終更新: ${parts}`;
+}
+
+function normalizedStoredCost(cost: number | undefined): number | undefined {
+  if (cost == null || Number.isNaN(cost)) return undefined;
+  return Math.max(0, Math.floor(cost));
+}
+
 /** フォームの原価入力から updateInvoice 用の差分（未入力時はフィールドをクリア） */
 export function invoiceCostPatchFromForm(
   totalIncludingTax: number,
-  costInputRaw: string
-): Partial<Pick<Invoice, "cost_amount_including_tax" | "cost_rate" | "profit_margin_rate">> {
+  costInputRaw: string,
+  previousCostIncludingTax?: number
+): InvoiceCostPatch {
   const cost = parseInvoiceCostInput(costInputRaw);
+  const prev = normalizedStoredCost(previousCostIncludingTax);
+
   if (cost === undefined) {
-    return {
+    const cleared: InvoiceCostPatch = {
       cost_amount_including_tax: undefined,
       cost_rate: undefined,
       profit_margin_rate: undefined,
     };
+    if (prev !== undefined) {
+      return { ...cleared, cost_amount_updated_at: undefined };
+    }
+    return cleared;
   }
-  return deriveInvoiceCostFields(totalIncludingTax, cost);
+
+  const fields = deriveInvoiceCostFields(totalIncludingTax, cost);
+  if (prev !== cost) {
+    return { ...fields, cost_amount_updated_at: costAmountUpdatedAtNow() };
+  }
+  return fields;
 }

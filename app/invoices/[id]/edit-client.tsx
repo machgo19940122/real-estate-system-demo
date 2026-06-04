@@ -5,6 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { EstimateLineItemsEditor } from "@/components/estimate-line-items-editor";
 import { DocumentLineItemsReadonlyTable } from "@/components/document-line-items-readonly";
+import {
+  EditableFooterTotalsView,
+  FooterTotalsReadonly,
+} from "@/components/editable-footer-totals";
 import { Save, X, Pencil, Receipt, AlertCircle } from "lucide-react";
 import { formatCurrency, formatDate, getPaymentStatusChipClassName } from "@/lib/utils";
 import {
@@ -12,7 +16,13 @@ import {
   persistedLineToForm,
 } from "@/lib/document-line-items";
 import { calcEstimateTaxableSubtotal, type EstimateLineItemForm } from "@/lib/estimate-units";
+import { useEditableFooterTotals } from "@/lib/use-editable-footer-totals";
 import {
+  getBillingAddresseeName,
+  getInvoiceBillingAddresseeDisplayName,
+} from "@/lib/customer-billing";
+import {
+  type Customer,
   type Invoice,
   type RevenueCategory,
   type PaymentStatus,
@@ -30,6 +40,7 @@ import {
   previewProfitMarginRate,
   previewProfitAmountIncludingTax,
 } from "@/lib/invoice-cost-metrics";
+import { InvoiceCostAmountHint } from "@/components/invoice-cost-amount-hint";
 import { InvoiceRelatedEstimate } from "@/components/invoice-related-estimate";
 import { InvoicePdfClient } from "./pdf-client";
 import { ReceiptClient } from "./receipt-client";
@@ -38,6 +49,7 @@ const TAX_RATE = 0.1;
 
 export function InvoiceEditClient({
   initialInvoice,
+  customer,
   customerName,
   propertyName,
   relatedEstimateId,
@@ -47,6 +59,7 @@ export function InvoiceEditClient({
   isOverdue,
 }: {
   initialInvoice: Invoice;
+  customer?: Customer;
   customerName?: string;
   propertyName?: string;
   relatedEstimateId?: number;
@@ -75,12 +88,13 @@ export function InvoiceEditClient({
   const [draftEstimateIdStr, setDraftEstimateIdStr] = useState(
     initialInvoice.estimate_id != null ? String(initialInvoice.estimate_id) : ""
   );
+  const [draftBillingAddresseeName, setDraftBillingAddresseeName] = useState(
+    initialInvoice.billing_addressee_name ?? ""
+  );
+  const [draftSubject, setDraftSubject] = useState(initialInvoice.subject ?? "");
 
-  const { subtotal, tax, total } = useMemo(() => {
-    const sub = calcEstimateTaxableSubtotal(draftItems);
-    const taxAmount = Math.floor(sub * TAX_RATE);
-    return { subtotal: sub, tax: taxAmount, total: sub + taxAmount };
-  }, [draftItems]);
+  const footerTotals = useEditableFooterTotals(draftItems);
+  const { subtotal, tax, total } = footerTotals;
 
   const { viewSubtotal, viewTax, viewTotal } = useMemo(() => {
     const forms = (invoice.items ?? []).map(persistedLineToForm);
@@ -102,9 +116,9 @@ export function InvoiceEditClient({
   const viewProfitMarginRate = useMemo(() => {
     if (invoice.profit_margin_rate != null) return invoice.profit_margin_rate;
     const c = invoiceCostIncludingTaxForDisplay(invoice);
-    if (c != null && viewTotal > 0) return (viewTotal - c) / viewTotal;
+    if (c != null && invoice.amount > 0) return (invoice.amount - c) / invoice.amount;
     return undefined;
-  }, [invoice, invoice.profit_margin_rate, viewTotal]);
+  }, [invoice, invoice.profit_margin_rate]);
 
   const viewProfitAmount = useMemo(() => {
     return invoiceProfitAmountIncludingTaxForDisplay(invoice);
@@ -122,6 +136,8 @@ export function InvoiceEditClient({
     setDraftEstimateIdStr(
       invoice.estimate_id != null ? String(invoice.estimate_id) : ""
     );
+    setDraftBillingAddresseeName(invoice.billing_addressee_name ?? "");
+    setDraftSubject(invoice.subject ?? "");
     setIsEditing(true);
   };
 
@@ -137,19 +153,32 @@ export function InvoiceEditClient({
     setDraftEstimateIdStr(
       invoice.estimate_id != null ? String(invoice.estimate_id) : ""
     );
+    setDraftBillingAddresseeName(invoice.billing_addressee_name ?? "");
+    setDraftSubject(invoice.subject ?? "");
     setIsEditing(false);
   };
 
+  const customerBillingFallback = getBillingAddresseeName(customer) || customerName || "—";
+
   const save = () => {
     const items = draftItems.map(formToInvoiceItem);
-    const costPatch = invoiceCostPatchFromForm(total, draftCostStr);
+    const costPatch = invoiceCostPatchFromForm(
+      total,
+      draftCostStr,
+      invoice.cost_amount_including_tax
+    );
     const saved = updateInvoice(invoice.id, {
       due_date: draftDueDate,
       revenue_category: (draftCategory || undefined) as RevenueCategory | undefined,
       status: draftManualStatus,
       note: draftNote.trim() ? draftNote.trim() : undefined,
       estimate_id: draftEstimateIdStr ? Number(draftEstimateIdStr) : undefined,
+      billing_addressee_name: draftBillingAddresseeName.trim()
+        ? draftBillingAddresseeName.trim()
+        : undefined,
+      subject: draftSubject.trim() ? draftSubject.trim() : undefined,
       items,
+      amount: total,
       ...costPatch,
     });
     setInvoice(saved);
@@ -225,6 +254,32 @@ export function InvoiceEditClient({
                 <p className="text-xs text-gray-500 mb-1">顧客</p>
                 <p className="font-medium text-gray-900 text-sm md:text-base">{customerName || "-"}</p>
               </div>
+              <div className="sm:col-span-2">
+                <p className="text-xs text-gray-500 mb-1">請求宛先名</p>
+                {isEditing ? (
+                  <>
+                    <input
+                      type="text"
+                      value={draftBillingAddresseeName}
+                      onChange={(e) => setDraftBillingAddresseeName(e.target.value)}
+                      placeholder={`未入力時: ${customerBillingFallback}`}
+                      className="mt-1 w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
+                    />
+                    <p className="text-[11px] text-gray-500 mt-1">
+                      請求宛先名を入力している場合、請求書にはこちらの名称を使用します。未入力の場合は顧客マスタの宛名（{customerBillingFallback}）を使用します。
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-medium text-gray-900 text-sm md:text-base">
+                      {getInvoiceBillingAddresseeDisplayName(invoice, customer) || "—"}
+                    </p>
+                    <p className="text-[11px] text-gray-500 mt-1">
+                      請求宛先名を入力している場合、請求書にはこちらの名称を使用します。未入力の場合は顧客マスタの宛名を使用します。
+                    </p>
+                  </>
+                )}
+              </div>
               <div>
                 <p className="text-xs text-gray-500 mb-1">区分</p>
                 {isEditing ? (
@@ -267,6 +322,21 @@ export function InvoiceEditClient({
                   />
                 )}
               </div>
+            </div>
+
+            <div className="pt-2">
+              <p className="text-xs text-gray-500 mb-1">件名</p>
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={draftSubject}
+                  onChange={(e) => setDraftSubject(e.target.value)}
+                  placeholder="請求書の件名を入力"
+                  className="w-full max-w-2xl px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
+                />
+              ) : (
+                <p className="text-sm text-gray-900">{invoice.subject?.trim() ? invoice.subject : "—"}</p>
+              )}
             </div>
 
             <div className="pt-2">
@@ -322,7 +392,7 @@ export function InvoiceEditClient({
                       : "—"}
                   </p>
                 )}
-                <p className="text-[11px] text-gray-500 mt-1">請求合計（税込）に対して入力します</p>
+                <InvoiceCostAmountHint updatedAt={invoice.cost_amount_updated_at} />
               </div>
               <div>
                 <p className="text-xs text-gray-500 mb-1">利益額（税込）</p>
@@ -406,37 +476,28 @@ export function InvoiceEditClient({
           )}
 
           {!isEditing && (invoice.items?.length ?? 0) > 0 && (
-            <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200 max-w-sm ml-auto space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">税抜き合計</span>
-                <span className="font-medium">{formatCurrency(viewSubtotal)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">消費税（10%）</span>
-                <span className="font-medium">{formatCurrency(viewTax)}</span>
-              </div>
-              <div className="flex justify-between text-base font-semibold pt-2 border-t border-gray-200">
-                <span>請求合計</span>
-                <span>{formatCurrency(viewTotal)}</span>
-              </div>
-            </div>
+            <FooterTotalsReadonly
+              subtotal={viewSubtotal}
+              tax={viewTax}
+              total={invoice.amount}
+              labels={{
+                subtotal: "税抜き合計",
+                tax: "消費税（10%）",
+                total: "請求合計",
+              }}
+            />
           )}
 
-          {isEditing && draftItems.length > 0 && (
-            <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200 max-w-sm ml-auto space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">税抜き合計</span>
-                <span className="font-medium">{formatCurrency(subtotal)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">消費税（10%）</span>
-                <span className="font-medium">{formatCurrency(tax)}</span>
-              </div>
-              <div className="flex justify-between text-base font-semibold pt-2 border-t border-gray-200">
-                <span>請求合計</span>
-                <span>{formatCurrency(total)}</span>
-              </div>
-            </div>
+          {isEditing && (
+            <EditableFooterTotalsView
+              items={draftItems}
+              totals={footerTotals}
+              labels={{
+                subtotal: "税抜き合計",
+                tax: "消費税（10%）",
+                total: "請求合計",
+              }}
+            />
           )}
         </div>
       </CardContent>

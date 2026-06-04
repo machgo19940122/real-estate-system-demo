@@ -13,6 +13,7 @@ import {
   staff,
   getStaffById,
 } from "@/src/data/mock";
+import { EditableFooterTotalsView } from "@/components/editable-footer-totals";
 import { formatCurrency } from "@/lib/utils";
 import {
   formatProfitMarginRate,
@@ -20,15 +21,14 @@ import {
   previewProfitMarginRate,
 } from "@/lib/invoice-cost-metrics";
 import { buildLineItemsFromEstimateItems } from "@/lib/document-line-items";
-import { calcEstimateTaxableSubtotal, type EstimateLineItemForm } from "@/lib/estimate-units";
+import { type EstimateLineItemForm } from "@/lib/estimate-units";
+import { useEditableFooterTotals } from "@/lib/use-editable-footer-totals";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { CustomerCombobox } from "@/components/customer-combobox";
 import { PropertyCombobox } from "@/components/property-combobox";
 import { EstimateSelect } from "@/components/estimate-select";
-
-const TAX_RATE = 0.1;
 
 function NewInvoiceForm() {
   const searchParams = useSearchParams();
@@ -44,6 +44,7 @@ function NewInvoiceForm() {
   const [staffId, setStaffId] = useState(presetStaffId);
   const [revenueCategory, setRevenueCategory] = useState(presetRevenueCategory);
   const [note, setNote] = useState(presetNote);
+  const [subject, setSubject] = useState("");
   const [items, setItems] = useState<EstimateLineItemForm[]>([]);
   const [costIncludingTaxStr, setCostIncludingTaxStr] = useState("");
   const [estimateIdStr, setEstimateIdStr] = useState(presetEstimateId ?? "");
@@ -54,6 +55,10 @@ function NewInvoiceForm() {
     setEstimateIdStr(String(estimateId));
     if (estimate.items && estimate.items.length > 0) {
       setItems(buildLineItemsFromEstimateItems(estimate.items));
+      const firstLine = estimate.items.find((it) => it.name?.trim());
+      if (firstLine?.name?.trim()) {
+        setSubject(firstLine.name.trim());
+      }
     }
     if (fromPreset) {
       if (!presetStaffId && estimate.staff_id != null) {
@@ -81,15 +86,8 @@ function NewInvoiceForm() {
     applyEstimate(Number(next));
   };
 
-  const { subtotal, tax, total } = useMemo(() => {
-    const sub = calcEstimateTaxableSubtotal(items);
-    const taxAmount = Math.floor(sub * TAX_RATE);
-    return {
-      subtotal: sub,
-      tax: taxAmount,
-      total: sub + taxAmount,
-    };
-  }, [items]);
+  const footerTotals = useEditableFooterTotals(items);
+  const { subtotal, tax, total } = footerTotals;
 
   const newFormProfitMargin = useMemo(
     () => previewProfitMarginRate(total, costIncludingTaxStr),
@@ -122,7 +120,9 @@ function NewInvoiceForm() {
       ? `\n関連見積: ${linked.estimate_number}`
       : "";
     alert(
-      "新規請求登録機能（ダミー）\n備考: " +
+      "新規請求登録機能（ダミー）\n件名: " +
+        (subject.trim() || "-") +
+        "\n備考: " +
         (note.trim() || "-") +
         staffLine +
         estimateLine +
@@ -259,6 +259,20 @@ function NewInvoiceForm() {
               </div>
 
               <div className="space-y-2 border-t pt-4">
+                <label htmlFor="invoice_subject" className="text-sm font-medium text-gray-700">
+                  件名
+                </label>
+                <input
+                  id="invoice_subject"
+                  type="text"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  placeholder="請求書の件名を入力"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white"
+                />
+              </div>
+
+              <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">備考</label>
                 <textarea
                   value={note}
@@ -274,19 +288,17 @@ function NewInvoiceForm() {
                 <EstimateLineItemsEditor items={items} onChange={setItems} minRows={0} />
 
                 {items.length > 0 && (
-                  <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200 max-w-sm ml-auto space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">請求税抜き合計</span>
-                      <span className="font-medium">{formatCurrency(subtotal)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">消費税（10%）</span>
-                      <span className="font-medium">{formatCurrency(tax)}</span>
-                    </div>
-                    <div className="flex justify-between text-base font-semibold pt-2 border-t border-gray-200">
-                      <span>請求合計</span>
-                      <span>{formatCurrency(total)}</span>
-                    </div>
+                  <div className="mt-6 max-w-sm ml-auto p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <EditableFooterTotalsView
+                      items={items}
+                      totals={footerTotals}
+                      className="space-y-2"
+                      labels={{
+                        subtotal: "請求税抜き合計",
+                        tax: "消費税（10%）",
+                        total: "請求合計",
+                      }}
+                    />
                     <div className="pt-4 mt-2 border-t border-gray-200 space-y-3">
                       <div className="space-y-1">
                         <label

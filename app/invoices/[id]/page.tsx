@@ -61,6 +61,7 @@ export default async function InvoiceDetailPage({
 
         <InvoiceEditClient
           initialInvoice={invoice}
+          customer={customer}
           customerName={customer?.name}
           propertyName={property?.name}
           relatedEstimateId={invoice.estimate_id}

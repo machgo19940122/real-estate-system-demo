@@ -1,25 +1,21 @@
 "use client";
 
-import { useState, useMemo, Suspense, useEffect, useCallback } from "react";
+import { useState, Suspense, useEffect, useCallback } from "react";
 import { AppLayout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { customers, properties, staff, getEstimateById } from "@/src/data/mock";
-import { formatCurrency } from "@/lib/utils";
 import { buildDraftFromEstimate, type EstimateNewFormDraft } from "@/lib/estimate-prefill";
 import { EstimateLineItemsEditor } from "@/components/estimate-line-items-editor";
 import { EstimateQuoteModal } from "@/components/estimate-quote-modal";
-import {
-  calcEstimateTaxableSubtotal,
-  createGeneralLineItem,
-} from "@/lib/estimate-units";
+import { EditableFooterTotalsView } from "@/components/editable-footer-totals";
+import { createGeneralLineItem } from "@/lib/estimate-units";
+import { useEditableFooterTotals } from "@/lib/use-editable-footer-totals";
 import { ArrowLeft, Quote } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { CustomerCombobox } from "@/components/customer-combobox";
 import { PropertyCombobox } from "@/components/property-combobox";
-
-const TAX_RATE = 0.1; // 消費税率10%
 
 function NewEstimateForm() {
   const searchParams = useSearchParams();
@@ -63,15 +59,7 @@ function NewEstimateForm() {
     alert("新規見積登録機能（ダミー）\n備考: " + (note.trim() || "-"));
   };
 
-  const { subtotal, tax, total } = useMemo(() => {
-    const sub = calcEstimateTaxableSubtotal(items);
-    const taxAmount = Math.floor(sub * TAX_RATE);
-    return {
-      subtotal: sub,
-      tax: taxAmount,
-      total: sub + taxAmount,
-    };
-  }, [items]);
+  const footerTotals = useEditableFooterTotals(items);
 
   return (
     <AppLayout>
@@ -183,21 +171,15 @@ function NewEstimateForm() {
                 <h3 className="text-lg font-semibold">見積項目</h3>
                 <EstimateLineItemsEditor items={items} onChange={setItems} />
 
-                {/* 見積税抜き合計・消費税・見積合計 */}
-                <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200 max-w-sm ml-auto space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">見積税抜き合計</span>
-                    <span className="font-medium">{formatCurrency(subtotal)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">消費税（10%）</span>
-                    <span className="font-medium">{formatCurrency(tax)}</span>
-                  </div>
-                  <div className="flex justify-between text-base font-semibold pt-2 border-t border-gray-200">
-                    <span>見積合計</span>
-                    <span>{formatCurrency(total)}</span>
-                  </div>
-                </div>
+                <EditableFooterTotalsView
+                  items={items}
+                  totals={footerTotals}
+                  labels={{
+                    subtotal: "見積税抜き合計",
+                    tax: "消費税（10%）",
+                    total: "見積合計",
+                  }}
+                />
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t">

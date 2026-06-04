@@ -10,6 +10,7 @@ import {
   getProjectById,
   getCustomerById,
 } from "@/src/data/mock";
+import { getInvoiceBillingAddresseeDisplayName } from "@/lib/customer-billing";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { FileText, X } from "lucide-react";
 
@@ -99,7 +100,11 @@ export function ReceiptClient({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">取引先:</span>
-                  <span className="text-sm font-medium">{customer?.name || "-"}</span>
+                  <span className="text-sm font-medium">
+                    {invoice
+                      ? getInvoiceBillingAddresseeDisplayName(invoice, customer) || "-"
+                      : "-"}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">案件名:</span>

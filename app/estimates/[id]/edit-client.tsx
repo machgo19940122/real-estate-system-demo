@@ -1,20 +1,23 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { EstimateLineItemsEditor } from "@/components/estimate-line-items-editor";
 import { DocumentLineItemsReadonlyTable } from "@/components/document-line-items-readonly";
+import {
+  EditableFooterTotalsView,
+  FooterTotalsReadonly,
+} from "@/components/editable-footer-totals";
 import { Save, X, Pencil, FileText } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import {
   formToEstimateItem,
   persistedLineToForm,
 } from "@/lib/document-line-items";
-import { calcEstimateTaxableSubtotal, type EstimateLineItemForm } from "@/lib/estimate-units";
+import { type EstimateLineItemForm } from "@/lib/estimate-units";
+import { useEditableFooterTotals } from "@/lib/use-editable-footer-totals";
 import { type Estimate, type RevenueCategory } from "@/src/data/mock";
-
-const TAX_RATE = 0.1;
 
 export function EstimateEditClient({
   initialEstimate,
@@ -37,11 +40,8 @@ export function EstimateEditClient({
     initialEstimate.items?.map(persistedLineToForm) ?? []
   );
 
-  const { subtotal, tax, total } = useMemo(() => {
-    const sub = calcEstimateTaxableSubtotal(draftItems);
-    const taxAmount = Math.floor(sub * TAX_RATE);
-    return { subtotal: sub, tax: taxAmount, total: sub + taxAmount };
-  }, [draftItems]);
+  const footerTotals = useEditableFooterTotals(draftItems);
+  const { subtotal, tax, total } = footerTotals;
 
   const syncDraftFromEstimate = () => {
     setDraftCategory((estimate.revenue_category as RevenueCategory | undefined) ?? "");
@@ -188,26 +188,32 @@ export function EstimateEditClient({
           </div>
 
           <div className="flex justify-end pt-4 border-t">
-            <div className="w-80 space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">見積税抜き合計:</span>
-                <span className="font-medium">
-                  {formatCurrency(isEditing ? subtotal : estimate.subtotal)}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">消費税 (10%):</span>
-                <span className="font-medium">
-                  {formatCurrency(isEditing ? tax : estimate.tax)}
-                </span>
-              </div>
-              <div className="flex justify-between text-lg font-bold pt-2 border-t">
-                <span>見積合計:</span>
-                <span className="text-blue-600">
-                  {formatCurrency(isEditing ? total : estimate.total)}
-                </span>
-              </div>
-            </div>
+            {isEditing ? (
+              <EditableFooterTotalsView
+                items={draftItems}
+                totals={footerTotals}
+                className="w-80 p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-2"
+                emphasizeTotal
+                labels={{
+                  subtotal: "見積税抜き合計",
+                  tax: "消費税（10%）",
+                  total: "見積合計",
+                }}
+              />
+            ) : (
+              <FooterTotalsReadonly
+                subtotal={estimate.subtotal}
+                tax={estimate.tax}
+                total={estimate.total}
+                className="w-80 p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-2"
+                emphasizeTotal
+                labels={{
+                  subtotal: "見積税抜き合計",
+                  tax: "消費税（10%）",
+                  total: "見積合計",
+                }}
+              />
+            )}
           </div>
         </div>
       </CardContent>

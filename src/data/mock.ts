@@ -161,6 +161,10 @@ export interface Invoice {
   staff_id?: number;
   revenue_category?: RevenueCategory;
   invoice_number: string;
+  /** 請求宛先名（請求書印字用。未入力時は顧客名＋敬称） */
+  billing_addressee_name?: string;
+  /** 件名（請求書の件名欄） */
+  subject?: string;
   note?: string;
   amount: number;
   due_date: string;
@@ -172,6 +176,8 @@ export interface Invoice {
    * デモでは税込原価を入力する運用に変更。
    */
   cost_amount_including_tax?: number;
+  /** 原価金額（税込）の最終更新日時（ISO 8601 ローカル相当、例: 2026-06-04T15:30:00） */
+  cost_amount_updated_at?: string;
   /**
    * 旧: 原価額（税抜・円）。互換のため残す（表示・計算は税込を優先）。
    */
@@ -616,6 +622,8 @@ export const invoices: Invoice[] = [
     project_id: 1,
     estimate_id: 1,
     invoice_number: "INV-001",
+    billing_addressee_name: "株式会社リフォームサポート 御中",
+    subject: "内装リフォーム工事・キッチン交換代金",
     note: "見積EST-001に基づく請求。",
     amount: 550000,
     due_date: "2025-04-30",
@@ -623,6 +631,7 @@ export const invoices: Invoice[] = [
     created_at: "2025-03-07",
     revenue_category: "リフォーム",
     cost_amount_including_tax: 330000,
+    cost_amount_updated_at: "2026-03-10T09:15:00",
     cost_amount_excluding_tax: 300000,
     cost_rate: 330000 / 550000,
     profit_margin_rate: (550000 - 330000) / 550000,
@@ -636,6 +645,7 @@ export const invoices: Invoice[] = [
     project_id: 2,
     estimate_id: 2,
     invoice_number: "INV-002",
+    subject: "建売戸建売買代金",
     note: "契約締結後に請求書PDF送付予定。",
     amount: 198000000,
     due_date: "2025-05-10",
@@ -643,6 +653,7 @@ export const invoices: Invoice[] = [
     created_at: "2025-03-08",
     revenue_category: "建売",
     cost_amount_including_tax: 165000000,
+    cost_amount_updated_at: "2025-03-09T11:20:00",
     cost_amount_excluding_tax: 150000000,
     cost_rate: 165000000 / 198000000,
     profit_margin_rate: (198000000 - 165000000) / 198000000,
@@ -653,12 +664,15 @@ export const invoices: Invoice[] = [
     project_id: 3,
     estimate_id: 3,
     invoice_number: "INV-003",
+    billing_addressee_name: "有限会社グローバルエステート 御中",
+    subject: "仲介手数料",
     amount: 27500000,
     due_date: "2025-05-15",
     status: "無し",
     created_at: "2025-03-12",
     revenue_category: "仲介料",
     cost_amount_including_tax: 22000000,
+    cost_amount_updated_at: "2025-03-13T10:00:00",
     cost_amount_excluding_tax: 20000000,
     cost_rate: 22000000 / 27500000,
     profit_margin_rate: (27500000 - 22000000) / 27500000,
@@ -669,12 +683,15 @@ export const invoices: Invoice[] = [
     project_id: 4,
     estimate_id: 5,
     invoice_number: "INV-004",
+    billing_addressee_name: "新宿プロパティ管理組合 御中",
+    subject: "中古マンション売買代金",
     amount: 385000000,
     due_date: "2025-04-20",
     status: "有",
     created_at: "2025-03-01",
     revenue_category: "土地",
     cost_amount_including_tax: 341000000,
+    cost_amount_updated_at: "2025-03-02T14:30:00",
     cost_amount_excluding_tax: 310000000,
     cost_rate: 341000000 / 385000000,
     profit_margin_rate: (385000000 - 341000000) / 385000000,
@@ -685,12 +702,14 @@ export const invoices: Invoice[] = [
     project_id: 5,
     estimate_id: 4,
     invoice_number: "INV-005",
+    subject: "キッチンリフォーム工事代金",
     amount: 880000,
     due_date: "2025-05-20",
     status: "無し",
     created_at: "2025-03-16",
     revenue_category: "リフォーム",
     cost_amount_including_tax: 572000,
+    cost_amount_updated_at: "2025-03-17T09:45:00",
     cost_amount_excluding_tax: 520000,
     cost_rate: 572000 / 880000,
     profit_margin_rate: (880000 - 572000) / 880000,
@@ -701,6 +720,8 @@ export const invoices: Invoice[] = [
     project_id: 6,
     estimate_id: 6,
     invoice_number: "INV-006",
+    billing_addressee_name: "建設デモ株式会社 御中",
+    subject: "注文住宅工事代金",
     note: "入金確認済み（振込）。",
     amount: 49500000,
     due_date: "2026-04-10",
@@ -708,6 +729,7 @@ export const invoices: Invoice[] = [
     created_at: "2026-02-15",
     revenue_category: "注文",
     cost_amount_including_tax: 41800000,
+    cost_amount_updated_at: "2026-02-20T16:40:00",
     cost_amount_excluding_tax: 38000000,
     cost_rate: 41800000 / 49500000,
     profit_margin_rate: (49500000 - 41800000) / 49500000,
@@ -718,12 +740,14 @@ export const invoices: Invoice[] = [
     project_id: 7,
     estimate_id: 7,
     invoice_number: "INV-007",
+    subject: "オフィスリノベーション工事代金",
     amount: 1320000,
     due_date: "2026-04-15",
     status: "有",
     created_at: "2026-02-25",
     revenue_category: "リフォーム",
     cost_amount_including_tax: 880000,
+    cost_amount_updated_at: "2026-02-26T13:10:00",
     cost_amount_excluding_tax: 800000,
     cost_rate: 880000 / 1320000,
     profit_margin_rate: (1320000 - 880000) / 1320000,
@@ -733,6 +757,7 @@ export const invoices: Invoice[] = [
     id: 8,
     project_id: 8,
     invoice_number: "INV-008",
+    subject: "土地売買代金",
     amount: 104500000,
     due_date: "2026-04-20",
     status: "有",
@@ -746,12 +771,15 @@ export const invoices: Invoice[] = [
     project_id: 9,
     estimate_id: 9,
     invoice_number: "INV-009",
+    billing_addressee_name: "仲介請求宛先デモ 御中",
+    subject: "仲介手数料",
     amount: 19800000,
     due_date: "2026-04-25",
     status: "有",
     created_at: "2026-03-05",
     revenue_category: "仲介料",
     cost_amount_including_tax: 13200000,
+    cost_amount_updated_at: "2026-03-06T15:25:00",
     cost_amount_excluding_tax: 12000000,
     cost_rate: 13200000 / 19800000,
     profit_margin_rate: (19800000 - 13200000) / 19800000,
@@ -762,12 +790,14 @@ export const invoices: Invoice[] = [
     project_id: 11,
     estimate_id: 11,
     invoice_number: "INV-010",
+    subject: "土地仲介手数料",
     amount: 13200000,
     due_date: "2026-05-10",
     status: "無し",
     created_at: "2026-03-15",
     revenue_category: "仲介料",
     cost_amount_including_tax: 8800000,
+    cost_amount_updated_at: "2026-03-16T10:05:00",
     cost_amount_excluding_tax: 8000000,
     cost_rate: 8800000 / 13200000,
     profit_margin_rate: (13200000 - 8800000) / 13200000,
@@ -902,11 +932,13 @@ export function updateInvoice(
   const next: Invoice = { ...invoices[idx], ...patch };
   next.items = normalizeInvoiceItems(next.items);
   if (next.items && next.items.length > 0) {
-    const subtotal = calcEstimateTaxableSubtotal(
-      next.items.map((it) => persistedLineToForm(it))
-    );
-    const tax = Math.floor(subtotal * 0.1);
-    next.amount = subtotal + tax;
+    if (patch.amount === undefined) {
+      const subtotal = calcEstimateTaxableSubtotal(
+        next.items.map((it) => persistedLineToForm(it))
+      );
+      const tax = Math.floor(subtotal * 0.1);
+      next.amount = subtotal + tax;
+    }
   }
   invoices[idx] = next;
   return next;

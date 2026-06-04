@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { issueInvoicePdfDemo } from "@/lib/invoice-pdf-demo";
 import { Download } from "lucide-react";
 
 export function InvoicePdfClient({
@@ -14,9 +15,7 @@ export function InvoicePdfClient({
     <Button
       variant="outline"
       size={size}
-      onClick={() => {
-        alert(`請求書発行（PDF / ダミー）: ${invoiceNumber}`);
-      }}
+      onClick={() => issueInvoicePdfDemo([invoiceNumber])}
     >
       <Download className="h-4 w-4 mr-2" />
       請求書PDF

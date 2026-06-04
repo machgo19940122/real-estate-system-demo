@@ -3,15 +3,25 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Save, X, Pencil, Trash2, Receipt, AlertCircle } from "lucide-react";
+import { EstimateLineItemsEditor } from "@/components/estimate-line-items-editor";
+import { DocumentLineItemsReadonlyTable } from "@/components/document-line-items-readonly";
+import { Save, X, Pencil, Receipt, AlertCircle } from "lucide-react";
 import { formatCurrency, formatDate, getPaymentStatusChipClassName } from "@/lib/utils";
 import {
+  formToInvoiceItem,
+  persistedLineToForm,
+} from "@/lib/document-line-items";
+import { calcEstimateTaxableSubtotal, type EstimateLineItemForm } from "@/lib/estimate-units";
+import {
   type Invoice,
-  type InvoiceItem,
   type RevenueCategory,
   type PaymentStatus,
+  customers,
+  estimates,
+  projects,
   updateInvoice,
 } from "@/src/data/mock";
+import { EstimateSelect } from "@/components/estimate-select";
 import {
   formatProfitMarginRate,
   invoiceCostPatchFromForm,
@@ -20,17 +30,18 @@ import {
   previewProfitMarginRate,
   previewProfitAmountIncludingTax,
 } from "@/lib/invoice-cost-metrics";
+import { InvoiceRelatedEstimate } from "@/components/invoice-related-estimate";
 import { InvoicePdfClient } from "./pdf-client";
 import { ReceiptClient } from "./receipt-client";
 
 const TAX_RATE = 0.1;
 
-type DraftItem = Omit<InvoiceItem, "amount"> & { amount?: number };
-
 export function InvoiceEditClient({
   initialInvoice,
   customerName,
   propertyName,
+  relatedEstimateId,
+  relatedEstimateNumber,
   paymentStatus,
   totalPaid,
   isOverdue,
@@ -38,6 +49,8 @@ export function InvoiceEditClient({
   initialInvoice: Invoice;
   customerName?: string;
   propertyName?: string;
+  relatedEstimateId?: number;
+  relatedEstimateNumber?: string;
   paymentStatus: PaymentStatus;
   totalPaid: number;
   isOverdue?: boolean;
@@ -51,25 +64,27 @@ export function InvoiceEditClient({
   );
   const [draftManualStatus, setDraftManualStatus] = useState<"有" | "無し">(initialInvoice.status);
   const [draftNote, setDraftNote] = useState(initialInvoice.note ?? "");
-  const [draftItems, setDraftItems] = useState<DraftItem[]>(initialInvoice.items?.map((it) => ({ ...it })) ?? []);
+  const [draftItems, setDraftItems] = useState<EstimateLineItemForm[]>(
+    initialInvoice.items?.map(persistedLineToForm) ?? []
+  );
   const [draftCostStr, setDraftCostStr] = useState(() =>
     initialInvoice.cost_amount_including_tax != null
       ? String(initialInvoice.cost_amount_including_tax)
       : ""
   );
+  const [draftEstimateIdStr, setDraftEstimateIdStr] = useState(
+    initialInvoice.estimate_id != null ? String(initialInvoice.estimate_id) : ""
+  );
 
   const { subtotal, tax, total } = useMemo(() => {
-    const sub = draftItems.reduce((sum, it) => {
-      const qty = Number(it.quantity) || 0;
-      const unit = Number(it.unit_price) || 0;
-      return sum + qty * unit;
-    }, 0);
+    const sub = calcEstimateTaxableSubtotal(draftItems);
     const taxAmount = Math.floor(sub * TAX_RATE);
     return { subtotal: sub, tax: taxAmount, total: sub + taxAmount };
   }, [draftItems]);
 
   const { viewSubtotal, viewTax, viewTotal } = useMemo(() => {
-    const sub = (invoice.items ?? []).reduce((sum, it) => sum + (Number(it.amount) || 0), 0);
+    const forms = (invoice.items ?? []).map(persistedLineToForm);
+    const sub = calcEstimateTaxableSubtotal(forms);
     const taxAmount = Math.floor(sub * TAX_RATE);
     return { viewSubtotal: sub, viewTax: taxAmount, viewTotal: sub + taxAmount };
   }, [invoice.items]);
@@ -100,9 +115,12 @@ export function InvoiceEditClient({
     setDraftCategory((invoice.revenue_category as RevenueCategory | undefined) ?? "");
     setDraftManualStatus(invoice.status);
     setDraftNote(invoice.note ?? "");
-    setDraftItems(invoice.items?.map((it) => ({ ...it })) ?? []);
+    setDraftItems(invoice.items?.map(persistedLineToForm) ?? []);
     setDraftCostStr(
       invoice.cost_amount_including_tax != null ? String(invoice.cost_amount_including_tax) : ""
+    );
+    setDraftEstimateIdStr(
+      invoice.estimate_id != null ? String(invoice.estimate_id) : ""
     );
     setIsEditing(true);
   };
@@ -112,56 +130,30 @@ export function InvoiceEditClient({
     setDraftCategory((invoice.revenue_category as RevenueCategory | undefined) ?? "");
     setDraftManualStatus(invoice.status);
     setDraftNote(invoice.note ?? "");
-    setDraftItems(invoice.items?.map((it) => ({ ...it })) ?? []);
+    setDraftItems(invoice.items?.map(persistedLineToForm) ?? []);
     setDraftCostStr(
       invoice.cost_amount_including_tax != null ? String(invoice.cost_amount_including_tax) : ""
+    );
+    setDraftEstimateIdStr(
+      invoice.estimate_id != null ? String(invoice.estimate_id) : ""
     );
     setIsEditing(false);
   };
 
   const save = () => {
-    const items = draftItems.map((it) => {
-      const qty = Number(it.quantity) || 0;
-      const unit = Number(it.unit_price) || 0;
-      return {
-        id: it.id,
-        name: it.name,
-        quantity: qty,
-        unit_price: unit,
-        amount: qty * unit,
-      };
-    });
+    const items = draftItems.map(formToInvoiceItem);
     const costPatch = invoiceCostPatchFromForm(total, draftCostStr);
     const saved = updateInvoice(invoice.id, {
       due_date: draftDueDate,
       revenue_category: (draftCategory || undefined) as RevenueCategory | undefined,
       status: draftManualStatus,
       note: draftNote.trim() ? draftNote.trim() : undefined,
+      estimate_id: draftEstimateIdStr ? Number(draftEstimateIdStr) : undefined,
       items,
       ...costPatch,
     });
     setInvoice(saved);
     setIsEditing(false);
-  };
-
-  const addRow = () => {
-    setDraftItems((prev) => [
-      ...prev,
-      {
-        id: prev.length ? Math.max(...prev.map((p) => p.id)) + 1 : 1,
-        name: "",
-        quantity: 1,
-        unit_price: 0,
-      },
-    ]);
-  };
-
-  const removeRow = (id: number) => {
-    setDraftItems((prev) => prev.filter((p) => p.id !== id));
-  };
-
-  const updateRow = (id: number, patch: Partial<DraftItem>) => {
-    setDraftItems((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
   };
 
   const amountForDisplay = isEditing && draftItems.length > 0 ? total : invoice.amount;
@@ -234,10 +226,6 @@ export function InvoiceEditClient({
                 <p className="font-medium text-gray-900 text-sm md:text-base">{customerName || "-"}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500 mb-1">物件</p>
-                <p className="font-medium text-gray-900 text-sm md:text-base">{propertyName || "-"}</p>
-              </div>
-              <div>
                 <p className="text-xs text-gray-500 mb-1">区分</p>
                 {isEditing ? (
                   <select
@@ -256,6 +244,27 @@ export function InvoiceEditClient({
                   <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium bg-blue-50 text-blue-800">
                     {invoice.revenue_category || "-"}
                   </span>
+                )}
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 mb-1">物件</p>
+                <p className="font-medium text-gray-900 text-sm md:text-base">{propertyName || "-"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 mb-1">関連見積</p>
+                {isEditing ? (
+                  <EstimateSelect
+                    estimates={estimates}
+                    projects={projects}
+                    customers={customers}
+                    value={draftEstimateIdStr}
+                    onChange={setDraftEstimateIdStr}
+                  />
+                ) : (
+                  <InvoiceRelatedEstimate
+                    estimateId={relatedEstimateId ?? invoice.estimate_id}
+                    estimateNumber={relatedEstimateNumber}
+                  />
                 )}
               </div>
             </div>
@@ -385,99 +394,15 @@ export function InvoiceEditClient({
         </div>
 
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-gray-700">請求明細</p>
-            {isEditing && (
-              <Button type="button" variant="outline" size="sm" onClick={addRow}>
-                <Plus className="h-4 w-4 mr-2" />
-                行を追加
-              </Button>
-            )}
-          </div>
+          <p className="text-sm font-semibold text-gray-700">請求明細</p>
 
-          {!isEditing ? (
-            invoice.items && invoice.items.length > 0 ? (
-              <div className="border rounded-lg overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-2 text-left font-medium text-gray-700">項目</th>
-                      <th className="px-4 py-2 text-right font-medium text-gray-700">数量</th>
-                      <th className="px-4 py-2 text-right font-medium text-gray-700">単価</th>
-                      <th className="px-4 py-2 text-right font-medium text-gray-700">金額</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {invoice.items.map((item) => (
-                      <tr key={item.id} className="bg-white">
-                        <td className="px-4 py-2">{item.name}</td>
-                        <td className="px-4 py-2 text-right">{item.quantity.toLocaleString()}</td>
-                        <td className="px-4 py-2 text-right">{formatCurrency(item.unit_price)}</td>
-                        <td className="px-4 py-2 text-right font-semibold">{formatCurrency(item.amount)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500">請求明細は登録されていません。</p>
-            )
+          {isEditing ? (
+            <EstimateLineItemsEditor items={draftItems} onChange={setDraftItems} minRows={0} />
           ) : (
-            <div className="border rounded-lg overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-3 py-2 text-left font-medium text-gray-700">項目</th>
-                    <th className="px-3 py-2 text-right font-medium text-gray-700">数量</th>
-                    <th className="px-3 py-2 text-right font-medium text-gray-700">単価</th>
-                    <th className="px-3 py-2 text-right font-medium text-gray-700">金額</th>
-                    <th className="px-3 py-2 text-center font-medium text-gray-700">操作</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {draftItems.map((item) => {
-                    const qty = Number(item.quantity) || 0;
-                    const unit = Number(item.unit_price) || 0;
-                    return (
-                      <tr key={item.id} className="bg-white">
-                        <td className="px-3 py-2">
-                          <input
-                            value={item.name}
-                            onChange={(e) => updateRow(item.id, { name: e.target.value })}
-                            className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                            placeholder="工事内容など"
-                          />
-                        </td>
-                        <td className="px-3 py-2 text-right">
-                          <input
-                            type="number"
-                            min={0}
-                            value={item.quantity}
-                            onChange={(e) => updateRow(item.id, { quantity: Number(e.target.value) || 0 })}
-                            className="w-20 px-2 py-1 border border-gray-300 rounded-md text-right text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                          />
-                        </td>
-                        <td className="px-3 py-2 text-right">
-                          <input
-                            type="number"
-                            min={0}
-                            value={item.unit_price}
-                            onChange={(e) => updateRow(item.id, { unit_price: Number(e.target.value) || 0 })}
-                            className="w-28 px-2 py-1 border border-gray-300 rounded-md text-right text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                          />
-                        </td>
-                        <td className="px-3 py-2 text-right">{(qty * unit).toLocaleString()}円</td>
-                        <td className="px-3 py-2 text-center">
-                          <Button type="button" variant="ghost" size="icon" onClick={() => removeRow(item.id)}>
-                            <Trash2 className="h-4 w-4 text-gray-400" />
-                          </Button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <DocumentLineItemsReadonlyTable
+              items={invoice.items ?? []}
+              emptyMessage="請求明細は登録されていません。"
+            />
           )}
 
           {!isEditing && (invoice.items?.length ?? 0) > 0 && (

@@ -1,11 +1,14 @@
 import { projects, type Estimate } from "@/src/data/mock";
+import {
+  buildLineItemsFromEstimateItems,
+  persistedLineToForm,
+} from "@/lib/document-line-items";
+import {
+  createGeneralLineItem,
+  type EstimateLineItemForm,
+} from "@/lib/estimate-units";
 
-export type EstimateFormLineItem = {
-  id: number;
-  name: string;
-  quantity: number;
-  unit_price: number;
-};
+export type EstimateFormLineItem = EstimateLineItemForm;
 
 export type EstimateNewFormDraft = {
   customerId: string;
@@ -22,16 +25,13 @@ export function buildDraftFromEstimate(estimate: Estimate): EstimateNewFormDraft
     estimate.project_id != null
       ? projects.find((p) => p.id === estimate.project_id)
       : undefined;
-  const baseLines = (estimate.items ?? []).map((it, i) => ({
-    id: Date.now() * 1000 + i,
-    name: it.name,
-    quantity: it.quantity,
-    unit_price: it.unit_price,
-  }));
+  const raw = estimate.items ?? [];
   const items =
-    baseLines.length > 0
-      ? baseLines
-      : [{ id: Date.now() * 1000, name: "", quantity: 1, unit_price: 0 }];
+    raw.length > 0
+      ? raw.map((it, i) =>
+          persistedLineToForm({ ...it, id: Date.now() * 1000 + i })
+        )
+      : [createGeneralLineItem(Date.now() * 1000)];
   return {
     customerId: project ? String(project.customer_id) : "",
     propertyId: project ? String(project.property_id) : "",

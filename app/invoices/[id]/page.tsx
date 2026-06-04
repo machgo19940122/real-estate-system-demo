@@ -9,6 +9,7 @@ import {
   getPaymentsByInvoiceId,
   getTotalPaidAmount,
   calculateInvoiceStatus,
+  getEstimateById,
 } from "@/src/data/mock";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { ArrowLeft, Calendar } from "lucide-react";
@@ -37,6 +38,8 @@ export default async function InvoiceDetailPage({
   const currentStatus = calculateInvoiceStatus(invoice);
   const isOverdue =
     currentStatus !== "入金済み" && new Date(invoice.due_date) < new Date();
+  const relatedEstimate =
+    invoice.estimate_id != null ? getEstimateById(invoice.estimate_id) : undefined;
 
   return (
     <AppLayout>
@@ -60,6 +63,8 @@ export default async function InvoiceDetailPage({
           initialInvoice={invoice}
           customerName={customer?.name}
           propertyName={property?.name}
+          relatedEstimateId={invoice.estimate_id}
+          relatedEstimateNumber={relatedEstimate?.estimate_number}
           paymentStatus={currentStatus}
           totalPaid={totalPaid}
           isOverdue={isOverdue}

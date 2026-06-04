@@ -3,13 +3,18 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Save, X, Pencil, Trash2, FileText } from "lucide-react";
+import { EstimateLineItemsEditor } from "@/components/estimate-line-items-editor";
+import { DocumentLineItemsReadonlyTable } from "@/components/document-line-items-readonly";
+import { Save, X, Pencil, FileText } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { type Estimate, type RevenueCategory, type EstimateItem } from "@/src/data/mock";
+import {
+  formToEstimateItem,
+  persistedLineToForm,
+} from "@/lib/document-line-items";
+import { calcEstimateTaxableSubtotal, type EstimateLineItemForm } from "@/lib/estimate-units";
+import { type Estimate, type RevenueCategory } from "@/src/data/mock";
 
 const TAX_RATE = 0.1;
-
-type DraftItem = Omit<EstimateItem, "amount"> & { amount?: number };
 
 export function EstimateEditClient({
   initialEstimate,
@@ -28,31 +33,29 @@ export function EstimateEditClient({
     (initialEstimate.revenue_category as RevenueCategory | undefined) ?? ""
   );
   const [draftNote, setDraftNote] = useState(initialEstimate.note ?? "");
-  const [draftItems, setDraftItems] = useState<DraftItem[]>(
-    initialEstimate.items?.map((it) => ({ ...it })) ?? []
+  const [draftItems, setDraftItems] = useState<EstimateLineItemForm[]>(
+    initialEstimate.items?.map(persistedLineToForm) ?? []
   );
 
   const { subtotal, tax, total } = useMemo(() => {
-    const sub = draftItems.reduce((sum, it) => {
-      const qty = Number(it.quantity) || 0;
-      const unit = Number(it.unit_price) || 0;
-      return sum + qty * unit;
-    }, 0);
+    const sub = calcEstimateTaxableSubtotal(draftItems);
     const taxAmount = Math.floor(sub * TAX_RATE);
     return { subtotal: sub, tax: taxAmount, total: sub + taxAmount };
   }, [draftItems]);
 
-  const startEdit = () => {
+  const syncDraftFromEstimate = () => {
     setDraftCategory((estimate.revenue_category as RevenueCategory | undefined) ?? "");
     setDraftNote(estimate.note ?? "");
-    setDraftItems(estimate.items?.map((it) => ({ ...it })) ?? []);
+    setDraftItems(estimate.items?.map(persistedLineToForm) ?? []);
+  };
+
+  const startEdit = () => {
+    syncDraftFromEstimate();
     setIsEditing(true);
   };
 
   const cancelEdit = () => {
-    setDraftCategory((estimate.revenue_category as RevenueCategory | undefined) ?? "");
-    setDraftNote(estimate.note ?? "");
-    setDraftItems(estimate.items?.map((it) => ({ ...it })) ?? []);
+    syncDraftFromEstimate();
     setIsEditing(false);
   };
 
@@ -61,44 +64,15 @@ export function EstimateEditClient({
       ...estimate,
       revenue_category: (draftCategory || undefined) as RevenueCategory | undefined,
       note: draftNote.trim() ? draftNote.trim() : undefined,
-      items: draftItems.map((it) => {
-        const qty = Number(it.quantity) || 0;
-        const unit = Number(it.unit_price) || 0;
-        return {
-          id: it.id,
-          name: it.name,
-          quantity: qty,
-          unit_price: unit,
-          amount: qty * unit,
-        };
-      }),
+      items: draftItems.map(formToEstimateItem),
       subtotal,
       tax,
       total,
     };
     setEstimate(next);
+    setDraftItems(next.items?.map(persistedLineToForm) ?? []);
     setIsEditing(false);
     alert("見積を更新しました（デモ / 保存処理は未実装）");
-  };
-
-  const addRow = () => {
-    setDraftItems((prev) => [
-      ...prev,
-      {
-        id: prev.length ? Math.max(...prev.map((p) => p.id)) + 1 : 1,
-        name: "",
-        quantity: 1,
-        unit_price: 0,
-      },
-    ]);
-  };
-
-  const removeRow = (id: number) => {
-    setDraftItems((prev) => prev.filter((p) => p.id !== id));
-  };
-
-  const updateRow = (id: number, patch: Partial<DraftItem>) => {
-    setDraftItems((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
   };
 
   const displayItems = estimate.items ?? [];
@@ -198,118 +172,25 @@ export function EstimateEditClient({
           </div>
 
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold">見積項目</h3>
-              {isEditing && (
-                <Button type="button" variant="outline" size="sm" onClick={addRow}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  行を追加
-                </Button>
-              )}
-            </div>
+            <h3 className="font-semibold">見積項目</h3>
 
-            {!isEditing ? (
-              displayItems.length > 0 ? (
-                <div className="border rounded-lg overflow-hidden">
-                  <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                          項目
-                        </th>
-                        <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">
-                          数量
-                        </th>
-                        <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">
-                          単価
-                        </th>
-                        <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">
-                          金額
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      {displayItems.map((item) => (
-                        <tr key={item.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3">{item.name}</td>
-                          <td className="px-4 py-3 text-right">{item.quantity}</td>
-                          <td className="px-4 py-3 text-right">{formatCurrency(item.unit_price)}</td>
-                          <td className="px-4 py-3 text-right font-semibold">
-                            {formatCurrency(item.amount)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <p className="text-sm text-gray-500">見積項目がありません</p>
-              )
+            {isEditing ? (
+              <EstimateLineItemsEditor
+                items={draftItems}
+                onChange={setDraftItems}
+                minRows={0}
+              />
+            ) : displayItems.length > 0 ? (
+              <DocumentLineItemsReadonlyTable items={displayItems} />
             ) : (
-              <div className="border rounded-lg overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-3 py-2 text-left font-medium text-gray-700">項目</th>
-                      <th className="px-3 py-2 text-right font-medium text-gray-700">数量</th>
-                      <th className="px-3 py-2 text-right font-medium text-gray-700">単価</th>
-                      <th className="px-3 py-2 text-right font-medium text-gray-700">金額</th>
-                      <th className="px-3 py-2 text-center font-medium text-gray-700">操作</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {draftItems.map((item) => {
-                      const qty = Number(item.quantity) || 0;
-                      const unit = Number(item.unit_price) || 0;
-                      return (
-                        <tr key={item.id} className="bg-white">
-                          <td className="px-3 py-2">
-                            <input
-                              value={item.name}
-                              onChange={(e) => updateRow(item.id, { name: e.target.value })}
-                              className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                              placeholder="工事内容など"
-                            />
-                          </td>
-                          <td className="px-3 py-2 text-right">
-                            <input
-                              type="number"
-                              min={0}
-                              value={item.quantity}
-                              onChange={(e) => updateRow(item.id, { quantity: Number(e.target.value) || 0 })}
-                              className="w-20 px-2 py-1 border border-gray-300 rounded-md text-right text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                            />
-                          </td>
-                          <td className="px-3 py-2 text-right">
-                            <input
-                              type="number"
-                              min={0}
-                              value={item.unit_price}
-                              onChange={(e) => updateRow(item.id, { unit_price: Number(e.target.value) || 0 })}
-                              className="w-28 px-2 py-1 border border-gray-300 rounded-md text-right text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                            />
-                          </td>
-                          <td className="px-3 py-2 text-right">
-                            {(qty * unit).toLocaleString()}円
-                          </td>
-                          <td className="px-3 py-2 text-center">
-                            <Button type="button" variant="ghost" size="icon" onClick={() => removeRow(item.id)}>
-                              <Trash2 className="h-4 w-4 text-gray-400" />
-                            </Button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              <p className="text-sm text-gray-500">見積項目がありません</p>
             )}
           </div>
 
           <div className="flex justify-end pt-4 border-t">
             <div className="w-80 space-y-3">
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">小計:</span>
+                <span className="text-gray-600">見積税抜き合計:</span>
                 <span className="font-medium">
                   {formatCurrency(isEditing ? subtotal : estimate.subtotal)}
                 </span>
@@ -321,7 +202,7 @@ export function EstimateEditClient({
                 </span>
               </div>
               <div className="flex justify-between text-lg font-bold pt-2 border-t">
-                <span>合計:</span>
+                <span>見積合計:</span>
                 <span className="text-blue-600">
                   {formatCurrency(isEditing ? total : estimate.total)}
                 </span>
@@ -333,4 +214,3 @@ export function EstimateEditClient({
     </Card>
   );
 }
-

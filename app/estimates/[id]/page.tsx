@@ -58,6 +58,7 @@ export default async function EstimateDetailPage({
               staffId={estimate.staff_id}
               amount={estimate.total}
               revenueCategory={estimate.revenue_category}
+              note={estimate.note}
             />
           </div>
         </div>

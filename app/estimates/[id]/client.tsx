@@ -11,6 +11,7 @@ type EstimateDetailClientProps = {
   staffId?: number;
   amount?: number;
   revenueCategory?: string;
+  note?: string;
 };
 
 export function EstimateDetailClient({
@@ -20,6 +21,7 @@ export function EstimateDetailClient({
   staffId,
   amount,
   revenueCategory,
+  note,
 }: EstimateDetailClientProps) {
   const params = new URLSearchParams();
   params.set("estimateId", String(estimateId));
@@ -28,6 +30,7 @@ export function EstimateDetailClient({
   if (staffId != null) params.set("staffId", String(staffId));
   if (amount != null) params.set("amount", String(amount));
   if (revenueCategory) params.set("revenueCategory", revenueCategory);
+  if (note?.trim()) params.set("note", note.trim());
   const invoiceNewHref = `/invoices/new?${params.toString()}`;
   const duplicateHref = `/estimates/new?fromEstimateId=${estimateId}`;
 

@@ -21,6 +21,8 @@ import {
   getStaffById,
   type RevenueCategory,
 } from "@/src/data/mock";
+import { ESTIMATE_PDF_LINES_PER_PAGE } from "@/lib/estimate-pdf-layout";
+import { LONG_DEMO_ESTIMATE_ID } from "@/src/data/estimate-items-est010-demo";
 import {
   isWithinYmdRange,
   rangeForHalf,
@@ -381,18 +383,38 @@ function EstimatesPageContent() {
                   const customer = project ? getCustomerById(project.customer_id) : undefined;
                   const property = project ? getPropertyById(project.property_id) : undefined;
                   const staff = estimate.staff_id ? getStaffById(estimate.staff_id) : undefined;
+                  const lineCount = estimate.items?.length ?? 0;
+                  const pdfPages =
+                    lineCount > 0
+                      ? Math.ceil(lineCount / ESTIMATE_PDF_LINES_PER_PAGE)
+                      : 0;
                   return (
                     <TableRow
                       key={estimate.id}
                       className="hover:bg-gray-50/50 transition-colors"
                     >
                       <TableCell className="font-medium">
-                        <Link
-                          href={`/estimates/${estimate.id}`}
-                          className="text-blue-600 hover:text-blue-700 hover:underline"
-                        >
-                          {estimate.estimate_number}
-                        </Link>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <Link
+                            href={`/estimates/${estimate.id}`}
+                            className="text-blue-600 hover:text-blue-700 hover:underline"
+                          >
+                            {estimate.estimate_number}
+                          </Link>
+                          {estimate.id === LONG_DEMO_ESTIMATE_ID && (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] px-1.5 py-0 border-blue-200 text-blue-800 bg-blue-50"
+                            >
+                              PDF改ページデモ
+                            </Badge>
+                          )}
+                          {lineCount >= ESTIMATE_PDF_LINES_PER_PAGE && (
+                            <span className="text-[10px] text-gray-500">
+                              明細{lineCount}行・約{pdfPages}ページ
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         {customer ? (

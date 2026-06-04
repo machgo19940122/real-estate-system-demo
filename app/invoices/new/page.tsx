@@ -4,27 +4,31 @@ import { useMemo, useState, useEffect, Suspense } from "react";
 import { AppLayout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { customers, properties, estimates, staff, getStaffById } from "@/src/data/mock";
+import { EstimateLineItemsEditor } from "@/components/estimate-line-items-editor";
+import {
+  customers,
+  properties,
+  projects,
+  estimates,
+  staff,
+  getStaffById,
+} from "@/src/data/mock";
 import { formatCurrency } from "@/lib/utils";
 import {
   formatProfitMarginRate,
   previewProfitAmountIncludingTax,
   previewProfitMarginRate,
 } from "@/lib/invoice-cost-metrics";
-import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { buildLineItemsFromEstimateItems } from "@/lib/document-line-items";
+import { calcEstimateTaxableSubtotal, type EstimateLineItemForm } from "@/lib/estimate-units";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { CustomerCombobox } from "@/components/customer-combobox";
 import { PropertyCombobox } from "@/components/property-combobox";
+import { EstimateSelect } from "@/components/estimate-select";
 
-const TAX_RATE = 0.1; // 消費税率10%
-
-type InvoiceItemForm = {
-  id: number;
-  name: string;
-  quantity: number;
-  unit_price: number;
-};
+const TAX_RATE = 0.1;
 
 function NewInvoiceForm() {
   const searchParams = useSearchParams();
@@ -40,35 +44,45 @@ function NewInvoiceForm() {
   const [staffId, setStaffId] = useState(presetStaffId);
   const [revenueCategory, setRevenueCategory] = useState(presetRevenueCategory);
   const [note, setNote] = useState(presetNote);
-  const [items, setItems] = useState<InvoiceItemForm[]>([]);
+  const [items, setItems] = useState<EstimateLineItemForm[]>([]);
   const [costIncludingTaxStr, setCostIncludingTaxStr] = useState("");
+  const [estimateIdStr, setEstimateIdStr] = useState(presetEstimateId ?? "");
 
-  // 見積から明細・担当を引き継ぎ（URL の staffId が無い場合は見積の担当を使用）
+  const applyEstimate = (estimateId: number, fromPreset = false) => {
+    const estimate = estimates.find((e) => e.id === estimateId);
+    if (!estimate) return;
+    setEstimateIdStr(String(estimateId));
+    if (estimate.items && estimate.items.length > 0) {
+      setItems(buildLineItemsFromEstimateItems(estimate.items));
+    }
+    if (fromPreset) {
+      if (!presetStaffId && estimate.staff_id != null) {
+        setStaffId(String(estimate.staff_id));
+      }
+      if (!presetNote.trim() && estimate.note?.trim()) {
+        setNote(estimate.note.trim());
+      }
+      if (!presetRevenueCategory && estimate.revenue_category) {
+        setRevenueCategory(estimate.revenue_category);
+      }
+    }
+  };
+
   useEffect(() => {
     if (!presetEstimateId) return;
-    const estimateIdNum = Number(presetEstimateId);
-    const estimate = estimates.find((e) => e.id === estimateIdNum);
-    if (!estimate) return;
-    if (estimate.items && estimate.items.length > 0) {
-      setItems(
-        estimate.items.map((item) => ({
-          id: item.id,
-          name: item.name,
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-        }))
-      );
-    }
-    if (!presetStaffId && estimate.staff_id != null) {
-      setStaffId(String(estimate.staff_id));
-    }
-  }, [presetEstimateId, presetStaffId]);
+    applyEstimate(Number(presetEstimateId), true);
+    // 初回の見積プリセットのみ
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleEstimateChange = (next: string) => {
+    setEstimateIdStr(next);
+    if (!next) return;
+    applyEstimate(Number(next));
+  };
 
   const { subtotal, tax, total } = useMemo(() => {
-    const sub = items.reduce(
-      (sum, item) => sum + item.quantity * (item.unit_price || 0),
-      0
-    );
+    const sub = calcEstimateTaxableSubtotal(items);
     const taxAmount = Math.floor(sub * TAX_RATE);
     return {
       subtotal: sub,
@@ -87,42 +101,6 @@ function NewInvoiceForm() {
     [total, costIncludingTaxStr]
   );
 
-  const handleAddItem = () => {
-    setItems((prev) => [
-      ...prev,
-      {
-        id: prev.length ? prev[prev.length - 1].id + 1 : 1,
-        name: "",
-        quantity: 1,
-        unit_price: 0,
-      },
-    ]);
-  };
-
-  const handleUpdateItem = (
-    id: number,
-    field: keyof InvoiceItemForm,
-    value: string
-  ) => {
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              [field]:
-                field === "quantity" || field === "unit_price"
-                  ? Number(value) || 0
-                  : value,
-            }
-          : item
-      )
-    );
-  };
-
-  const handleRemoveItem = (id: number) => {
-    setItems((prev) => prev.filter((item) => item.id !== id));
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!customerId) {
@@ -137,10 +115,17 @@ function NewInvoiceForm() {
       staffId !== ""
         ? `\n担当者: ${getStaffById(Number(staffId))?.name ?? staffId}`
         : "\n担当者: （未選択）";
+    const linked = estimateIdStr
+      ? estimates.find((e) => e.id === Number(estimateIdStr))
+      : undefined;
+    const estimateLine = linked
+      ? `\n関連見積: ${linked.estimate_number}`
+      : "";
     alert(
       "新規請求登録機能（ダミー）\n備考: " +
         (note.trim() || "-") +
         staffLine +
+        estimateLine +
         "\n請求明細行数: " +
         items.length +
         costLine
@@ -257,9 +242,22 @@ function NewInvoiceForm() {
                   </label>
                   <PropertyCombobox properties={properties} value={propertyId} onChange={setPropertyId} />
                 </div>
+
+                <div className="space-y-2 md:col-span-1">
+                  <label htmlFor="estimate_id" className="text-sm font-medium text-gray-700">
+                    関連見積（任意）
+                  </label>
+                  <EstimateSelect
+                    estimates={estimates}
+                    projects={projects}
+                    customers={customers}
+                    value={estimateIdStr}
+                    onChange={handleEstimateChange}
+                    customerId={customerId || undefined}
+                  />
+                </div>
               </div>
 
-              {/* 備考 */}
               <div className="space-y-2 border-t pt-4">
                 <label className="text-sm font-medium text-gray-700">備考</label>
                 <textarea
@@ -271,102 +269,10 @@ function NewInvoiceForm() {
                 />
               </div>
 
-              {/* 請求明細 */}
               <div className="space-y-3 border-t pt-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-semibold text-gray-700">請求明細</h2>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleAddItem}
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    明細を追加
-                  </Button>
-                </div>
-                {items.length > 0 ? (
-                  <div className="border rounded-lg overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-3 py-2 text-left font-medium text-gray-700">
-                            項目
-                          </th>
-                          <th className="px-3 py-2 text-right font-medium text-gray-700">
-                            数量
-                          </th>
-                          <th className="px-3 py-2 text-right font-medium text-gray-700">
-                            単価
-                          </th>
-                          <th className="px-3 py-2 text-right font-medium text-gray-700">
-                            金額
-                          </th>
-                          <th className="px-3 py-2 text-center font-medium text-gray-700">
-                            操作
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
-                        {items.map((item) => (
-                          <tr key={item.id} className="bg-white">
-                            <td className="px-3 py-2">
-                              <input
-                                className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                value={item.name}
-                                onChange={(e) =>
-                                  handleUpdateItem(item.id, "name", e.target.value)
-                                }
-                                placeholder="工事内容など"
-                              />
-                            </td>
-                            <td className="px-3 py-2 text-right">
-                              <input
-                                type="number"
-                                min={0}
-                                className="w-20 px-2 py-1 border border-gray-300 rounded-md text-right text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                value={item.quantity}
-                                onChange={(e) =>
-                                  handleUpdateItem(item.id, "quantity", e.target.value)
-                                }
-                              />
-                            </td>
-                            <td className="px-3 py-2 text-right">
-                              <input
-                                type="number"
-                                min={0}
-                                className="w-28 px-2 py-1 border border-gray-300 rounded-md text-right text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                value={item.unit_price}
-                                onChange={(e) =>
-                                  handleUpdateItem(item.id, "unit_price", e.target.value)
-                                }
-                              />
-                            </td>
-                            <td className="px-3 py-2 text-right">
-                              {(item.quantity * item.unit_price).toLocaleString()}円
-                            </td>
-                            <td className="px-3 py-2 text-center">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleRemoveItem(item.id)}
-                              >
-                                <Trash2 className="h-4 w-4 text-gray-400" />
-                              </Button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-500">
-                    明細はまだありません。「明細を追加」から行を追加できます。
-                  </p>
-                )}
+                <h2 className="text-sm font-semibold text-gray-700">請求明細</h2>
+                <EstimateLineItemsEditor items={items} onChange={setItems} minRows={0} />
 
-                {/* 請求税抜き合計・消費税・請求合計（見積画面と同様） */}
                 {items.length > 0 && (
                   <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200 max-w-sm ml-auto space-y-2">
                     <div className="flex justify-between text-sm">

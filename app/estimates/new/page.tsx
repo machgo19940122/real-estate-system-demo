@@ -7,8 +7,13 @@ import { Button } from "@/components/ui/button";
 import { customers, properties, staff, getEstimateById } from "@/src/data/mock";
 import { formatCurrency } from "@/lib/utils";
 import { buildDraftFromEstimate, type EstimateNewFormDraft } from "@/lib/estimate-prefill";
+import { EstimateLineItemsEditor } from "@/components/estimate-line-items-editor";
 import { EstimateQuoteModal } from "@/components/estimate-quote-modal";
-import { ArrowLeft, Plus, Quote, X } from "lucide-react";
+import {
+  calcEstimateTaxableSubtotal,
+  createGeneralLineItem,
+} from "@/lib/estimate-units";
+import { ArrowLeft, Quote } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { CustomerCombobox } from "@/components/customer-combobox";
@@ -28,9 +33,7 @@ function NewEstimateForm() {
   const [revenueCategory, setRevenueCategory] = useState(presetRevenueCategory);
   const [staffId, setStaffId] = useState("");
   const [note, setNote] = useState("");
-  const [items, setItems] = useState([
-    { id: 1, name: "", quantity: 1, unit_price: 0 },
-  ]);
+  const [items, setItems] = useState([createGeneralLineItem(1)]);
   const [quoteModalOpen, setQuoteModalOpen] = useState(false);
 
   const applyDraft = useCallback((draft: EstimateNewFormDraft) => {
@@ -60,32 +63,8 @@ function NewEstimateForm() {
     alert("新規見積登録機能（ダミー）\n備考: " + (note.trim() || "-"));
   };
 
-  const addItem = () => {
-    setItems([
-      ...items,
-      { id: Date.now(), name: "", quantity: 1, unit_price: 0 },
-    ]);
-  };
-
-  const removeItem = (id: number) => {
-    if (items.length > 1) {
-      setItems(items.filter((item) => item.id !== id));
-    }
-  };
-
-  const updateItem = (id: number, field: string, value: string | number) => {
-    setItems(
-      items.map((item) =>
-        item.id === id ? { ...item, [field]: value } : item
-      )
-    );
-  };
-
   const { subtotal, tax, total } = useMemo(() => {
-    const sub = items.reduce(
-      (sum, item) => sum + item.quantity * (item.unit_price || 0),
-      0
-    );
+    const sub = calcEstimateTaxableSubtotal(items);
     const taxAmount = Math.floor(sub * TAX_RATE);
     return {
       subtotal: sub,
@@ -201,86 +180,8 @@ function NewEstimateForm() {
                   />
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">見積項目</h3>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={addItem}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    項目を追加
-                  </Button>
-                </div>
-
-                <div className="space-y-4">
-                  {items.map((item, index) => (
-                    <div
-                      key={item.id}
-                      className="grid gap-4 md:grid-cols-12 items-end p-4 border border-gray-200 rounded-lg"
-                    >
-                      <div className="md:col-span-5 space-y-2">
-                        <label className="text-sm font-medium text-gray-700">
-                          項目名
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={item.name}
-                          onChange={(e) =>
-                            updateItem(item.id, "name", e.target.value)
-                          }
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                          placeholder="内装リフォーム工事"
-                        />
-                      </div>
-                      <div className="md:col-span-3 space-y-2">
-                        <label className="text-sm font-medium text-gray-700">
-                          数量
-                        </label>
-                        <input
-                          type="number"
-                          required
-                          min="1"
-                          value={item.quantity}
-                          onChange={(e) =>
-                            updateItem(item.id, "quantity", parseInt(e.target.value) || 1)
-                          }
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                        />
-                      </div>
-                      <div className="md:col-span-3 space-y-2">
-                        <label className="text-sm font-medium text-gray-700">
-                          単価
-                        </label>
-                        <input
-                          type="number"
-                          required
-                          min="0"
-                          value={item.unit_price}
-                          onChange={(e) =>
-                            updateItem(item.id, "unit_price", parseInt(e.target.value) || 0)
-                          }
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                        />
-                      </div>
-                      <div className="md:col-span-1">
-                        {items.length > 1 && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => removeItem(item.id)}
-                            className="w-full"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <h3 className="text-lg font-semibold">見積項目</h3>
+                <EstimateLineItemsEditor items={items} onChange={setItems} />
 
                 {/* 見積税抜き合計・消費税・見積合計 */}
                 <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200 max-w-sm ml-auto space-y-2">

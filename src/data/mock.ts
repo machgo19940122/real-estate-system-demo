@@ -120,10 +120,15 @@ export interface Estimate {
   items?: EstimateItem[];
 }
 
+export type EstimateLineKind = "general" | "discount" | "comment" | "subtotal";
+
 export interface EstimateItem {
   id: number;
+  line_kind?: EstimateLineKind;
   name: string;
   quantity: number;
+  /** 単位（式・㎡ など） */
+  unit?: string;
   unit_price: number;
   amount: number;
 }
@@ -133,11 +138,14 @@ export type InvoiceStatus = "有" | "無し";
 // 入金状況（入金額から自動判定）
 export type PaymentStatus = "未入金" | "一部入金" | "入金済み";
 
-// 請求書の明細行
+// 請求書の明細行（見積明細と同じ種別・単位）
 export interface InvoiceItem {
   id: number;
+  line_kind?: EstimateLineKind;
   name: string;
   quantity: number;
+  /** 単位（式・㎡ など） */
+  unit?: string;
   unit_price: number;
   amount: number;
 }
@@ -148,6 +156,8 @@ export interface Invoice {
   property_id?: number;
   /** 案件ID（未廃止時はこちらで顧客・物件を紐づけ） */
   project_id?: number;
+  /** 元見積ID（見積から請求作成した場合） */
+  estimate_id?: number;
   staff_id?: number;
   revenue_category?: RevenueCategory;
   invoice_number: string;
@@ -559,6 +569,18 @@ export const projects: Project[] = [
   { id: 12, name: "目黒区外装リフォーム", type: "リフォーム", status: "見積中", customer_id: 5, property_id: 5, staff_id: 5, price: 350000, created_at: "2026-03-15" },
 ];
 
+import {
+  EST010_DEMO_ITEMS,
+  getEst010DemoTotals,
+} from "./estimate-items-est010-demo";
+import { calcEstimateTaxableSubtotal } from "@/lib/estimate-units";
+import {
+  normalizePersistedLineItem,
+  persistedLineToForm,
+} from "@/lib/document-line-items";
+
+const est010DemoTotals = getEst010DemoTotals();
+
 // 見積：全区分・複数顧客・複数担当者。revenue_category を明示。
 export const estimates: Estimate[] = [
   { id: 1, project_id: 1, estimate_number: "EST-001", staff_id: 2, revenue_category: "リフォーム", note: "現地調査は完了。色味はグレー系希望。", subtotal: 500000, tax: 50000, total: 550000, created_at: "2025-03-07", items: [{ id: 1, name: "内装リフォーム工事", quantity: 1, unit_price: 300000, amount: 300000 }, { id: 2, name: "キッチン交換", quantity: 1, unit_price: 200000, amount: 200000 }] },
@@ -570,7 +592,19 @@ export const estimates: Estimate[] = [
   { id: 7, project_id: 7, estimate_number: "EST-007", staff_id: 5, revenue_category: "リフォーム", subtotal: 1200000, tax: 120000, total: 1320000, created_at: "2026-02-25", items: [{ id: 8, name: "オフィスリノベーション", quantity: 1, unit_price: 1200000, amount: 1200000 }] },
   { id: 8, project_id: 8, estimate_number: "EST-008", staff_id: 3, revenue_category: "土地", note: "測量図の受領待ち。", subtotal: 95000000, tax: 9500000, total: 104500000, created_at: "2026-03-01", items: [{ id: 9, name: "土地売買", quantity: 1, unit_price: 95000000, amount: 95000000 }] },
   { id: 9, project_id: 9, estimate_number: "EST-009", staff_id: 3, revenue_category: "仲介料", subtotal: 18000000, tax: 1800000, total: 19800000, created_at: "2026-03-05", items: [{ id: 10, name: "仲介手数料", quantity: 1, unit_price: 18000000, amount: 18000000 }] },
-  { id: 10, project_id: 10, estimate_number: "EST-010", staff_id: 2, revenue_category: "建売", note: "住宅ローン事前審査中。", subtotal: 60000000, tax: 6000000, total: 66000000, created_at: "2026-03-08", items: [{ id: 11, name: "建売マンション", quantity: 1, unit_price: 60000000, amount: 60000000 }] },
+  {
+    id: 10,
+    project_id: 10,
+    estimate_number: "EST-010",
+    staff_id: 2,
+    revenue_category: "建売",
+    note: "住宅ローン事前審査中。詳細内訳35行（PDF改ページ・値引き/小計/コメント含むデモ）。",
+    subtotal: est010DemoTotals.subtotal,
+    tax: est010DemoTotals.tax,
+    total: est010DemoTotals.total,
+    created_at: "2026-03-08",
+    items: EST010_DEMO_ITEMS,
+  },
   { id: 11, project_id: 11, estimate_number: "EST-011", staff_id: 3, revenue_category: "仲介料", subtotal: 12000000, tax: 1200000, total: 13200000, created_at: "2026-03-12", items: [{ id: 12, name: "土地仲介手数料", quantity: 1, unit_price: 12000000, amount: 12000000 }] },
   { id: 12, project_id: 12, estimate_number: "EST-012", staff_id: 5, revenue_category: "リフォーム", note: "雨天時は日程再調整。", subtotal: 350000, tax: 35000, total: 385000, created_at: "2026-03-18", items: [{ id: 13, name: "外装リフォーム", quantity: 1, unit_price: 350000, amount: 350000 }] },
 ];
@@ -580,6 +614,7 @@ export const invoices: Invoice[] = [
   {
     id: 1,
     project_id: 1,
+    estimate_id: 1,
     invoice_number: "INV-001",
     note: "見積EST-001に基づく請求。",
     amount: 550000,
@@ -599,6 +634,7 @@ export const invoices: Invoice[] = [
   {
     id: 2,
     project_id: 2,
+    estimate_id: 2,
     invoice_number: "INV-002",
     note: "契約締結後に請求書PDF送付予定。",
     amount: 198000000,
@@ -615,6 +651,7 @@ export const invoices: Invoice[] = [
   {
     id: 3,
     project_id: 3,
+    estimate_id: 3,
     invoice_number: "INV-003",
     amount: 27500000,
     due_date: "2025-05-15",
@@ -630,6 +667,7 @@ export const invoices: Invoice[] = [
   {
     id: 4,
     project_id: 4,
+    estimate_id: 5,
     invoice_number: "INV-004",
     amount: 385000000,
     due_date: "2025-04-20",
@@ -645,6 +683,7 @@ export const invoices: Invoice[] = [
   {
     id: 5,
     project_id: 5,
+    estimate_id: 4,
     invoice_number: "INV-005",
     amount: 880000,
     due_date: "2025-05-20",
@@ -660,6 +699,7 @@ export const invoices: Invoice[] = [
   {
     id: 6,
     project_id: 6,
+    estimate_id: 6,
     invoice_number: "INV-006",
     note: "入金確認済み（振込）。",
     amount: 49500000,
@@ -676,6 +716,7 @@ export const invoices: Invoice[] = [
   {
     id: 7,
     project_id: 7,
+    estimate_id: 7,
     invoice_number: "INV-007",
     amount: 1320000,
     due_date: "2026-04-15",
@@ -703,6 +744,7 @@ export const invoices: Invoice[] = [
   {
     id: 9,
     project_id: 9,
+    estimate_id: 9,
     invoice_number: "INV-009",
     amount: 19800000,
     due_date: "2026-04-25",
@@ -718,6 +760,7 @@ export const invoices: Invoice[] = [
   {
     id: 10,
     project_id: 11,
+    estimate_id: 11,
     invoice_number: "INV-010",
     amount: 13200000,
     due_date: "2026-05-10",
@@ -824,12 +867,7 @@ export function updateProperty(id: number, patch: Partial<Omit<Property, "id">>)
 
 function normalizeEstimateItems(items: EstimateItem[] | undefined): EstimateItem[] | undefined {
   if (!items) return items;
-  return items.map((it) => ({
-    ...it,
-    quantity: Number(it.quantity) || 0,
-    unit_price: Number(it.unit_price) || 0,
-    amount: (Number(it.quantity) || 0) * (Number(it.unit_price) || 0),
-  }));
+  return items.map((it) => normalizePersistedLineItem(it));
 }
 
 export function updateEstimate(
@@ -840,7 +878,9 @@ export function updateEstimate(
   if (idx < 0) throw new Error(`Estimate not found: ${id}`);
   const next: Estimate = { ...estimates[idx], ...patch };
   next.items = normalizeEstimateItems(next.items);
-  const subtotal = (next.items ?? []).reduce((sum, it) => sum + (it.amount || 0), 0);
+  const subtotal = calcEstimateTaxableSubtotal(
+    (next.items ?? []).map((it) => persistedLineToForm(it))
+  );
   next.subtotal = subtotal;
   next.tax = Math.floor(subtotal * 0.1);
   next.total = next.subtotal + next.tax;
@@ -850,12 +890,7 @@ export function updateEstimate(
 
 function normalizeInvoiceItems(items: InvoiceItem[] | undefined): InvoiceItem[] | undefined {
   if (!items) return items;
-  return items.map((it) => ({
-    ...it,
-    quantity: Number(it.quantity) || 0,
-    unit_price: Number(it.unit_price) || 0,
-    amount: (Number(it.quantity) || 0) * (Number(it.unit_price) || 0),
-  }));
+  return items.map((it) => normalizePersistedLineItem(it));
 }
 
 export function updateInvoice(
@@ -867,7 +902,9 @@ export function updateInvoice(
   const next: Invoice = { ...invoices[idx], ...patch };
   next.items = normalizeInvoiceItems(next.items);
   if (next.items && next.items.length > 0) {
-    const subtotal = next.items.reduce((sum, it) => sum + (it.amount || 0), 0);
+    const subtotal = calcEstimateTaxableSubtotal(
+      next.items.map((it) => persistedLineToForm(it))
+    );
     const tax = Math.floor(subtotal * 0.1);
     next.amount = subtotal + tax;
   }

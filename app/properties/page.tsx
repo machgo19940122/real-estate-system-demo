@@ -33,8 +33,10 @@ export default function PropertiesPage() {
     return list.filter(
       (property) =>
         property.name.toLowerCase().includes(query) ||
+        (property.chiban ?? "").toLowerCase().includes(query) ||
         property.address.toLowerCase().includes(query) ||
-        property.owner.toLowerCase().includes(query)
+        property.owner.toLowerCase().includes(query) ||
+        (property.memo ?? "").toLowerCase().includes(query)
     );
   }, [searchQuery, categoryFilter]);
 

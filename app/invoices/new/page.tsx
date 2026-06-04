@@ -33,11 +33,13 @@ function NewInvoiceForm() {
   const presetRevenueCategory = searchParams.get("revenueCategory") ?? "";
   const presetEstimateId = searchParams.get("estimateId");
   const presetStaffId = searchParams.get("staffId") ?? "";
+  const presetNote = searchParams.get("note") ?? "";
 
   const [customerId, setCustomerId] = useState(presetCustomerId);
   const [propertyId, setPropertyId] = useState(presetPropertyId);
   const [staffId, setStaffId] = useState(presetStaffId);
-  const [note, setNote] = useState("");
+  const [revenueCategory, setRevenueCategory] = useState(presetRevenueCategory);
+  const [note, setNote] = useState(presetNote);
   const [items, setItems] = useState<InvoiceItemForm[]>([]);
   const [costIncludingTaxStr, setCostIncludingTaxStr] = useState("");
 
@@ -204,8 +206,9 @@ function NewInvoiceForm() {
                     id="revenue_category"
                     name="revenue_category"
                     required
+                    value={revenueCategory}
+                    onChange={(e) => setRevenueCategory(e.target.value)}
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white"
-                    defaultValue={presetRevenueCategory}
                   >
                     <option value="">選択してください</option>
                     <option value="注文">注文</option>

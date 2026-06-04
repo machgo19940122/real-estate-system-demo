@@ -64,13 +64,43 @@ export interface NegotiationHistory {
 
 export type PropertyCategory = "注文" | "建売" | "土地";
 
+export const PROPERTY_CATEGORIES: PropertyCategory[] = ["注文", "建売", "土地"];
+
+/** 物件の添付資料（最大10件） */
+export interface PropertyAttachment {
+  id: number;
+  file_name: string;
+  mime_type: string;
+  size_bytes: number;
+  uploaded_at: string;
+  data_url?: string;
+  preview_text?: string;
+}
+
 export interface Property {
   id: number;
   name: string;
+  /** 地番 */
+  chiban?: string;
+  postal_code?: string;
   address: string;
   owner: string;
+  /** 所有者（顧客ID） */
+  owner_customer_id?: number;
   category?: PropertyCategory;
+  /** 販売金額（円） */
+  sale_price?: number;
+  memo?: string;
+  attachments?: PropertyAttachment[];
   created_at?: string;
+}
+
+export function getPropertyOwnerCustomerId(
+  property: Property,
+  customerList: Customer[] = customers
+): number | undefined {
+  if (property.owner_customer_id != null) return property.owner_customer_id;
+  return customerList.find((c) => c.name === property.owner)?.id;
 }
 
 export interface Estimate {
@@ -400,65 +430,115 @@ export const properties: Property[] = [
   {
     id: 1,
     name: "渋谷マンションA",
+    chiban: "神南1-1-1",
+    postal_code: "150-0041",
     address: "東京都渋谷区神南1-1-1",
     owner: "田中太郎",
+    owner_customer_id: 1,
     category: "建売",
+    sale_price: 58000000,
+    memo: "角部屋。南向き。",
+    attachments: [
+      {
+        id: 1,
+        file_name: "外観パース.svg",
+        mime_type: "image/svg+xml",
+        size_bytes: 748,
+        uploaded_at: "2026-03-01",
+      },
+      {
+        id: 2,
+        file_name: "平面図.svg",
+        mime_type: "image/svg+xml",
+        size_bytes: 752,
+        uploaded_at: "2026-03-04",
+      },
+    ],
     created_at: "2025-01-20",
   },
   {
     id: 2,
     name: "世田谷戸建",
+    chiban: "三軒茶屋2-2-2",
+    postal_code: "154-0004",
     address: "東京都世田谷区三軒茶屋2-2-2",
     owner: "株式会社サンプル",
+    owner_customer_id: 2,
     category: "注文",
+    sale_price: 98000000,
     created_at: "2025-02-05",
   },
   {
     id: 3,
     name: "新宿アパート",
+    chiban: "西新宿3-3-3",
+    postal_code: "160-0023",
     address: "東京都新宿区西新宿3-3-3",
     owner: "佐藤花子",
+    owner_customer_id: 3,
     category: "建売",
+    sale_price: 42000000,
     created_at: "2025-02-15",
   },
   {
     id: 4,
     name: "港区タワーマンション",
+    chiban: "六本木4-4-4",
+    postal_code: "106-0032",
     address: "東京都港区六本木4-4-4",
     owner: "鈴木一郎",
+    owner_customer_id: 4,
     category: "土地",
+    sale_price: 350000000,
+    memo: "再開発エリア。",
     created_at: "2025-02-25",
   },
   {
     id: 5,
     name: "目黒区新築一戸建",
+    chiban: "目黒5-5-5",
+    postal_code: "153-0063",
     address: "東京都目黒区目黒5-5-5",
     owner: "高橋美咲",
+    owner_customer_id: 5,
     category: "注文",
+    sale_price: 49500000,
     created_at: "2025-03-05",
   },
   {
     id: 6,
     name: "品川オフィスビル",
+    chiban: "大崎6-6-6",
+    postal_code: "141-0032",
     address: "東京都品川区大崎6-6-6",
     owner: "株式会社建設丸",
+    owner_customer_id: 6,
     category: "建売",
+    sale_price: 120000000,
     created_at: "2025-03-10",
   },
   {
     id: 7,
     name: "渋谷マンションB",
+    chiban: "道玄坂1-2-3",
+    postal_code: "150-0041",
     address: "東京都渋谷区道玄坂1-2-3",
     owner: "田中太郎",
+    owner_customer_id: 1,
     category: "注文",
+    sale_price: 60000000,
     created_at: "2025-03-15",
   },
   {
     id: 8,
     name: "千代田区地番123",
+    chiban: "丸の内7-7-7",
+    postal_code: "100-0005",
     address: "東京都千代田区丸の内7-7-7",
     owner: "株式会社サンプル",
+    owner_customer_id: 2,
     category: "土地",
+    sale_price: 85000000,
     created_at: "2025-03-20",
   },
 ];

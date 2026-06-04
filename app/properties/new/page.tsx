@@ -1,14 +1,42 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { AppLayout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  PropertyFormFields,
+  propertyFormCanSave,
+  type PropertyFormValues,
+} from "@/components/property-form-fields";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { customers } from "@/src/data/mock";
+
+const emptyValues: PropertyFormValues = {
+  name: "",
+  chiban: "",
+  postal_code: "",
+  prefecture: "",
+  address: "",
+  category: "",
+  memo: "",
+  sale_price: "",
+  owner_customer_id: "",
+};
 
 export default function NewPropertyPage() {
+  const [values, setValues] = useState<PropertyFormValues>(emptyValues);
+
+  const canSubmit = useMemo(() => propertyFormCanSave(values), [values]);
+
+  const handleChange = (patch: Partial<PropertyFormValues>) => {
+    setValues((prev) => ({ ...prev, ...patch }));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canSubmit) return;
     alert("新規物件登録機能（ダミー）");
   };
 
@@ -36,62 +64,11 @@ export default function NewPropertyPage() {
           </CardHeader>
           <CardContent className="pt-6">
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid gap-6 md:grid-cols-2">
-                <div className="space-y-2 md:col-span-2">
-                  <label htmlFor="name" className="text-sm font-medium text-gray-700">
-                    物件名 <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    id="name"
-                    type="text"
-                    required
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                    placeholder="渋谷マンション"
-                  />
-                </div>
-
-                <div className="space-y-2 md:col-span-2">
-                  <label htmlFor="address" className="text-sm font-medium text-gray-700">
-                    住所 <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    id="address"
-                    type="text"
-                    required
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                    placeholder="東京都渋谷区1-1-1"
-                  />
-                </div>
-
-                <div className="space-y-2 md:col-span-2">
-                  <label htmlFor="owner" className="text-sm font-medium text-gray-700">
-                    所有者 <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    id="owner"
-                    type="text"
-                    required
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                    placeholder="田中太郎"
-                  />
-                </div>
-
-                <div className="space-y-2 md:col-span-2">
-                  <label htmlFor="category" className="text-sm font-medium text-gray-700">
-                    区分 <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    id="category"
-                    required
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white"
-                  >
-                    <option value="">選択してください</option>
-                    <option value="注文">注文</option>
-                    <option value="建売">建売</option>
-                    <option value="土地">土地</option>
-                  </select>
-                </div>
-              </div>
+              <PropertyFormFields
+                values={values}
+                onChange={handleChange}
+                customers={customers}
+              />
 
               <div className="flex justify-end gap-3 pt-4 border-t">
                 <Link href="/properties">
@@ -99,7 +76,11 @@ export default function NewPropertyPage() {
                     キャンセル
                   </Button>
                 </Link>
-                <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
+                <Button
+                  type="submit"
+                  disabled={!canSubmit}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                >
                   登録する
                 </Button>
               </div>
@@ -110,4 +91,3 @@ export default function NewPropertyPage() {
     </AppLayout>
   );
 }
-

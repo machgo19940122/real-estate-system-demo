@@ -55,7 +55,9 @@ function InvoicesPageContent() {
 
   useEffect(() => {
     const customer = searchParams.get("customer");
+    const property = searchParams.get("property");
     if (customer) setSearchQuery(customer);
+    else if (property) setSearchQuery(property);
   }, [searchParams]);
   const [categoryFilter, setCategoryFilter] = useState<RevenueCategory | "">("");
   const [statusFilter, setStatusFilter] = useState<"" | "有" | "無し">("");

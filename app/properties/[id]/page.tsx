@@ -9,12 +9,21 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { properties, projects, estimates, invoices, customers, getCustomerById, calculateInvoiceStatus } from "@/src/data/mock";
+import {
+  properties,
+  projects,
+  estimates,
+  invoices,
+  getCustomerById,
+  getPropertyOwnerCustomerId,
+  calculateInvoiceStatus,
+} from "@/src/data/mock";
 import { formatCurrency, formatDate, getPaymentStatusChipClassName } from "@/lib/utils";
-import { ArrowLeft, MapPin, User, Calendar, Building2, FileText } from "lucide-react";
+import { ArrowLeft, ArrowRight, FileText, Receipt } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PropertyDetailClient } from "./client";
+import { PropertyAttachmentsClient } from "./property-attachments-client";
 
 export default async function PropertyDetailPage({
   params,
@@ -31,16 +40,28 @@ export default async function PropertyDetailPage({
   const propertyProjects = projects.filter((p) => p.property_id === property.id);
   const propertyProjectIds = propertyProjects.map((p) => p.id);
 
-  const propertyEstimates = estimates.filter((e) =>
+  const sortByCreatedAtDesc = <T extends { created_at: string }>(items: T[]) =>
+    items
+      .slice()
+      .sort((a, b) =>
+        a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0
+      );
+
+  const propertyEstimatesAll = estimates.filter((e) =>
     propertyProjectIds.includes((e as any).project_id)
   );
+  const propertyEstimates = sortByCreatedAtDesc(propertyEstimatesAll).slice(0, 3);
 
-  const propertyInvoices = invoices.filter((inv) =>
+  const propertyInvoicesAll = invoices.filter((inv) =>
     propertyProjectIds.includes((inv as any).project_id)
   );
+  const propertyInvoices = sortByCreatedAtDesc(propertyInvoicesAll).slice(0, 3);
 
-  // 所有者名と一致する顧客を取得（見積作成時に顧客を引き継ぐ用）
-  const ownerCustomer = customers.find((c) => c.name === property.owner);
+  const estimatesListHref = `/estimates?property=${encodeURIComponent(property.name)}`;
+  const invoicesListHref = `/invoices?property=${encodeURIComponent(property.name)}`;
+
+  const ownerCustomerId = getPropertyOwnerCustomerId(property);
+  const ownerCustomer = ownerCustomerId ? getCustomerById(ownerCustomerId) : undefined;
 
   const estimateNewParams = new URLSearchParams();
   estimateNewParams.set("propertyId", String(property.id));
@@ -50,6 +71,26 @@ export default async function PropertyDetailPage({
   }
   if (ownerCustomer) estimateNewParams.set("customerId", String(ownerCustomer.id));
   const estimateNewHref = `/estimates/new?${estimateNewParams.toString()}`;
+
+  const invoiceNewParams = new URLSearchParams();
+  invoiceNewParams.set("propertyId", String(property.id));
+  if (property.category) {
+    invoiceNewParams.set("revenueCategory", property.category);
+  }
+  if (ownerCustomer) {
+    invoiceNewParams.set("customerId", String(ownerCustomer.id));
+  }
+  if (property.memo?.trim()) {
+    invoiceNewParams.set("note", property.memo.trim());
+  }
+  const latestEstimate = sortByCreatedAtDesc(propertyEstimatesAll)[0];
+  if (latestEstimate) {
+    invoiceNewParams.set("estimateId", String(latestEstimate.id));
+    if (latestEstimate.staff_id != null) {
+      invoiceNewParams.set("staffId", String(latestEstimate.staff_id));
+    }
+  }
+  const invoiceNewHref = `/invoices/new?${invoiceNewParams.toString()}`;
 
   return (
     <AppLayout>
@@ -69,22 +110,41 @@ export default async function PropertyDetailPage({
               <p className="text-gray-600 mt-1">物件詳細情報</p>
             </div>
           </div>
-          <Link href={estimateNewHref}>
-            <Button className="bg-blue-600 hover:bg-blue-700">
-              <FileText className="h-4 w-4 mr-2" />
-              この物件の見積を作る
-            </Button>
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link href={estimateNewHref}>
+              <Button className="bg-blue-600 hover:bg-blue-700">
+                <FileText className="h-4 w-4 mr-2" />
+                この物件の見積を作る
+              </Button>
+            </Link>
+            <Link href={invoiceNewHref}>
+              <Button variant="outline" className="border-blue-600 text-blue-700 hover:bg-blue-50">
+                <Receipt className="h-4 w-4 mr-2" />
+                この物件の請求書を作る
+              </Button>
+            </Link>
+          </div>
         </div>
 
         <PropertyDetailClient initialProperty={property} />
+
+        <PropertyAttachmentsClient
+          propertyId={property.id}
+          initialAttachments={property.attachments}
+        />
 
         {/* 関連見積・請求 */}
         <div className="grid gap-6 md:grid-cols-2">
           {/* この物件の見積 */}
           <Card className="border-0 shadow-lg">
-            <CardHeader className="border-b flex items-center justify-between">
+            <CardHeader className="border-b flex items-center justify-between gap-3">
               <CardTitle>この物件の見積</CardTitle>
+              <Link href={estimatesListHref}>
+                <Button variant="outline" size="sm">
+                  見積一覧へ
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              </Link>
             </CardHeader>
             <CardContent className="pt-6">
               {propertyEstimates.length > 0 ? (
@@ -144,13 +204,24 @@ export default async function PropertyDetailPage({
                   この物件の見積はまだありません
                 </p>
               )}
+              {propertyEstimatesAll.length > 3 && (
+                <p className="text-xs text-gray-500 mt-3 text-center">
+                  最新3件を表示しています（全{propertyEstimatesAll.length}件）
+                </p>
+              )}
             </CardContent>
           </Card>
 
           {/* この物件の請求 */}
           <Card className="border-0 shadow-lg">
-            <CardHeader className="border-b flex items-center justify-between">
+            <CardHeader className="border-b flex items-center justify-between gap-3">
               <CardTitle>この物件の請求</CardTitle>
+              <Link href={invoicesListHref}>
+                <Button variant="outline" size="sm">
+                  請求一覧へ
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              </Link>
             </CardHeader>
             <CardContent className="pt-6">
               {propertyInvoices.length > 0 ? (
@@ -228,6 +299,11 @@ export default async function PropertyDetailPage({
               ) : (
                 <p className="text-gray-500 text-center py-4">
                   この物件の請求はまだありません
+                </p>
+              )}
+              {propertyInvoicesAll.length > 3 && (
+                <p className="text-xs text-gray-500 mt-3 text-center">
+                  最新3件を表示しています（全{propertyInvoicesAll.length}件）
                 </p>
               )}
             </CardContent>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { EstimateLineItemsEditor } from "@/components/estimate-line-items-editor";
@@ -9,7 +10,9 @@ import {
   EditableFooterTotalsView,
   FooterTotalsReadonly,
 } from "@/components/editable-footer-totals";
-import { Save, X, Pencil, Receipt, AlertCircle } from "lucide-react";
+import { Save, X, Pencil, Receipt, AlertCircle, Lock } from "lucide-react";
+import { YesNoDialog } from "@/components/yes-no-dialog";
+import { isInvoiceClosed } from "@/lib/invoice-close";
 import { formatCurrency, formatDate, getPaymentStatusChipClassName } from "@/lib/utils";
 import {
   formToInvoiceItem,
@@ -29,6 +32,11 @@ import {
   customers,
   estimates,
   projects,
+  properties,
+  staff,
+  closeInvoice,
+  getInvoiceStaffId,
+  getStaffById,
   updateInvoice,
 } from "@/src/data/mock";
 import { EstimateSelect } from "@/components/estimate-select";
@@ -41,17 +49,24 @@ import {
   previewProfitAmountIncludingTax,
 } from "@/lib/invoice-cost-metrics";
 import { InvoiceCostAmountHint } from "@/components/invoice-cost-amount-hint";
+import { InvoicePropertiesEditor } from "@/components/invoice-properties-editor";
+import { InvoicePropertiesList } from "@/components/invoice-properties-list";
+import { getInvoicePropertyIds } from "@/lib/invoice-properties";
+import {
+  dueDateFromInvoiceDate,
+  getInvoiceDate,
+  getInvoiceDateForPrint,
+} from "@/lib/invoice-dates";
 import { InvoiceRelatedEstimate } from "@/components/invoice-related-estimate";
 import { InvoicePdfClient } from "./pdf-client";
 import { ReceiptClient } from "./receipt-client";
-
-const TAX_RATE = 0.1;
+import { useSystemSettings } from "@/lib/use-system-settings";
+import { calcTaxFromSubtotal, formatTaxRateLabel } from "@/lib/system-settings";
 
 export function InvoiceEditClient({
   initialInvoice,
   customer,
   customerName,
-  propertyName,
   relatedEstimateId,
   relatedEstimateNumber,
   paymentStatus,
@@ -61,7 +76,6 @@ export function InvoiceEditClient({
   initialInvoice: Invoice;
   customer?: Customer;
   customerName?: string;
-  propertyName?: string;
   relatedEstimateId?: number;
   relatedEstimateNumber?: string;
   paymentStatus: PaymentStatus;
@@ -71,7 +85,14 @@ export function InvoiceEditClient({
   const [invoice, setInvoice] = useState<Invoice>(initialInvoice);
   const [isEditing, setIsEditing] = useState(false);
 
+  const [draftInvoiceDate, setDraftInvoiceDate] = useState(() =>
+    getInvoiceDate(initialInvoice)
+  );
+  const [draftPrintInvoiceDate, setDraftPrintInvoiceDate] = useState(
+    initialInvoice.print_invoice_date ?? ""
+  );
   const [draftDueDate, setDraftDueDate] = useState(initialInvoice.due_date);
+  const dueDateManualRef = useRef(false);
   const [draftCategory, setDraftCategory] = useState<RevenueCategory | "">(
     (initialInvoice.revenue_category as RevenueCategory | undefined) ?? ""
   );
@@ -92,16 +113,37 @@ export function InvoiceEditClient({
     initialInvoice.billing_addressee_name ?? ""
   );
   const [draftSubject, setDraftSubject] = useState(initialInvoice.subject ?? "");
+  const [draftPropertyIds, setDraftPropertyIds] = useState(() =>
+    getInvoicePropertyIds(initialInvoice)
+  );
+  const [draftStaffIdStr, setDraftStaffIdStr] = useState(() => {
+    const id = getInvoiceStaffId(initialInvoice);
+    return id != null ? String(id) : "";
+  });
+  const [closeDialog, setCloseDialog] = useState<null | "yellow_warn" | "final_confirm">(null);
 
-  const footerTotals = useEditableFooterTotals(draftItems);
+  const amountsLocked = isInvoiceClosed(invoice);
+  const displayStaffId = getInvoiceStaffId(invoice);
+  const displayStaffMember =
+    displayStaffId != null ? getStaffById(displayStaffId) : undefined;
+  const { settings, taxRateForDate } = useSystemSettings();
+  const invoiceDateForTax = getInvoiceDate(invoice);
+  const taxRate = taxRateForDate(invoiceDateForTax);
+  const taxLabel = formatTaxRateLabel(taxRate);
+
+  const footerTotals = useEditableFooterTotals(
+    draftItems,
+    taxRate,
+    settings.amount_rounding
+  );
   const { subtotal, tax, total } = footerTotals;
 
   const { viewSubtotal, viewTax, viewTotal } = useMemo(() => {
     const forms = (invoice.items ?? []).map(persistedLineToForm);
     const sub = calcEstimateTaxableSubtotal(forms);
-    const taxAmount = Math.floor(sub * TAX_RATE);
+    const taxAmount = calcTaxFromSubtotal(sub, taxRate, settings);
     return { viewSubtotal: sub, viewTax: taxAmount, viewTotal: sub + taxAmount };
-  }, [invoice.items]);
+  }, [invoice.items, taxRate, settings]);
 
   const editProfitMarginPreview = useMemo(
     () => previewProfitMarginRate(total, draftCostStr),
@@ -124,7 +166,22 @@ export function InvoiceEditClient({
     return invoiceProfitAmountIncludingTaxForDisplay(invoice);
   }, [invoice]);
 
+  const handleInvoiceDateChange = (next: string) => {
+    setDraftInvoiceDate(next);
+    if (!dueDateManualRef.current && next) {
+      setDraftDueDate(dueDateFromInvoiceDate(next));
+    }
+  };
+
+  const handleDueDateChange = (next: string) => {
+    dueDateManualRef.current = true;
+    setDraftDueDate(next);
+  };
+
   const startEdit = () => {
+    dueDateManualRef.current = false;
+    setDraftInvoiceDate(getInvoiceDate(invoice));
+    setDraftPrintInvoiceDate(invoice.print_invoice_date ?? "");
     setDraftDueDate(invoice.due_date);
     setDraftCategory((invoice.revenue_category as RevenueCategory | undefined) ?? "");
     setDraftManualStatus(invoice.status);
@@ -138,10 +195,16 @@ export function InvoiceEditClient({
     );
     setDraftBillingAddresseeName(invoice.billing_addressee_name ?? "");
     setDraftSubject(invoice.subject ?? "");
+    setDraftPropertyIds(getInvoicePropertyIds(invoice));
+    const staffId = getInvoiceStaffId(invoice);
+    setDraftStaffIdStr(staffId != null ? String(staffId) : "");
     setIsEditing(true);
   };
 
   const cancelEdit = () => {
+    dueDateManualRef.current = false;
+    setDraftInvoiceDate(getInvoiceDate(invoice));
+    setDraftPrintInvoiceDate(invoice.print_invoice_date ?? "");
     setDraftDueDate(invoice.due_date);
     setDraftCategory((invoice.revenue_category as RevenueCategory | undefined) ?? "");
     setDraftManualStatus(invoice.status);
@@ -155,19 +218,27 @@ export function InvoiceEditClient({
     );
     setDraftBillingAddresseeName(invoice.billing_addressee_name ?? "");
     setDraftSubject(invoice.subject ?? "");
+    setDraftPropertyIds(getInvoicePropertyIds(invoice));
+    const staffId = getInvoiceStaffId(invoice);
+    setDraftStaffIdStr(staffId != null ? String(staffId) : "");
     setIsEditing(false);
+  };
+
+  const handleEstimateChange = (next: string) => {
+    setDraftEstimateIdStr(next);
+    if (!next) return;
+    const estimate = estimates.find((e) => e.id === Number(next));
+    if (estimate?.staff_id != null) {
+      setDraftStaffIdStr(String(estimate.staff_id));
+    }
   };
 
   const customerBillingFallback = getBillingAddresseeName(customer) || customerName || "—";
 
   const save = () => {
-    const items = draftItems.map(formToInvoiceItem);
-    const costPatch = invoiceCostPatchFromForm(
-      total,
-      draftCostStr,
-      invoice.cost_amount_including_tax
-    );
-    const saved = updateInvoice(invoice.id, {
+    const basePatch = {
+      invoice_date: draftInvoiceDate.trim() || undefined,
+      print_invoice_date: draftPrintInvoiceDate.trim() || undefined,
       due_date: draftDueDate,
       revenue_category: (draftCategory || undefined) as RevenueCategory | undefined,
       status: draftManualStatus,
@@ -177,15 +248,41 @@ export function InvoiceEditClient({
         ? draftBillingAddresseeName.trim()
         : undefined,
       subject: draftSubject.trim() ? draftSubject.trim() : undefined,
-      items,
-      amount: total,
-      ...costPatch,
-    });
+      property_ids: draftPropertyIds.length > 0 ? draftPropertyIds : undefined,
+      property_id: draftPropertyIds[0],
+      staff_id: draftStaffIdStr ? Number(draftStaffIdStr) : undefined,
+    };
+
+    const saved = amountsLocked
+      ? updateInvoice(invoice.id, basePatch)
+      : updateInvoice(invoice.id, {
+          ...basePatch,
+          items: draftItems.map(formToInvoiceItem),
+          amount: total,
+          ...invoiceCostPatchFromForm(total, draftCostStr, invoice.cost_amount_including_tax),
+        });
     setInvoice(saved);
     setIsEditing(false);
   };
 
-  const amountForDisplay = isEditing && draftItems.length > 0 ? total : invoice.amount;
+  const requestInvoiceClose = () => {
+    if (amountsLocked) return;
+    if (invoice.status === "無し") {
+      setCloseDialog("yellow_warn");
+      return;
+    }
+    setCloseDialog("final_confirm");
+  };
+
+  const executeInvoiceClose = () => {
+    const saved = closeInvoice(invoice.id);
+    setInvoice(saved);
+    setCloseDialog(null);
+    setIsEditing(false);
+  };
+
+  const amountForDisplay =
+    isEditing && !amountsLocked && draftItems.length > 0 ? total : invoice.amount;
   const remaining = amountForDisplay - totalPaid;
 
   return (
@@ -201,6 +298,12 @@ export function InvoiceEditClient({
                 支払期限超過（{formatDate(invoice.due_date)}）
               </span>
             )}
+            {amountsLocked && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 text-slate-700 px-2 py-0.5 text-xs font-medium border border-slate-200">
+                <Lock className="h-3 w-3" />
+                締め済
+              </span>
+            )}
           </CardTitle>
           <div className="flex flex-wrap items-center gap-2 sm:justify-end">
             {!isEditing && (
@@ -213,6 +316,12 @@ export function InvoiceEditClient({
                   size="sm"
                 />
               </>
+            )}
+            {!isEditing && !amountsLocked && (
+              <Button onClick={requestInvoiceClose} variant="outline" size="sm">
+                <Lock className="h-4 w-4 mr-2" />
+                請求締め
+              </Button>
             )}
             {!isEditing ? (
               <Button onClick={startEdit} variant="outline" size="sm">
@@ -248,7 +357,45 @@ export function InvoiceEditClient({
               </div>
               <div>
                 <p className="text-xs text-gray-500 mb-1">請求日</p>
-                <p className="font-medium text-sm md:text-base">{formatDate(invoice.created_at)}</p>
+                {isEditing ? (
+                  <input
+                    type="date"
+                    value={draftInvoiceDate}
+                    onChange={(e) => handleInvoiceDateChange(e.target.value)}
+                    className="mt-1 w-full max-w-[200px] px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
+                  />
+                ) : (
+                  <p className="font-medium text-sm md:text-base">
+                    {formatDate(getInvoiceDate(invoice))}
+                  </p>
+                )}
+              </div>
+              <div className="sm:col-span-2">
+                <p className="text-xs text-gray-500 mb-1">印刷請求日</p>
+                {isEditing ? (
+                  <>
+                    <input
+                      type="date"
+                      value={draftPrintInvoiceDate}
+                      onChange={(e) => setDraftPrintInvoiceDate(e.target.value)}
+                      className="mt-1 w-full max-w-[200px] px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
+                    />
+                    <p className="text-[11px] text-gray-500 mt-1">
+                      印刷請求日に値がある場合、請求書にはこちらの日付を優先して表示します。未入力の場合は請求日を使用します。
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-medium text-sm md:text-base">
+                      {invoice.print_invoice_date?.trim()
+                        ? formatDate(getInvoiceDateForPrint(invoice))
+                        : "—"}
+                    </p>
+                    <p className="text-[11px] text-gray-500 mt-1">
+                      印刷請求日に値がある場合、請求書にはこちらの日付を優先して表示します。未入力の場合は請求日を使用します。
+                    </p>
+                  </>
+                )}
               </div>
               <div>
                 <p className="text-xs text-gray-500 mb-1">顧客</p>
@@ -302,8 +449,45 @@ export function InvoiceEditClient({
                 )}
               </div>
               <div>
+                <p className="text-xs text-gray-500 mb-1">担当者</p>
+                {isEditing ? (
+                  <>
+                    <select
+                      value={draftStaffIdStr}
+                      onChange={(e) => setDraftStaffIdStr(e.target.value)}
+                      className="mt-1 w-full max-w-[220px] px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
+                    >
+                      <option value="">選択してください</option>
+                      {staff.map((member) => (
+                        <option key={member.id} value={member.id}>
+                          {member.name}
+                        </option>
+                      ))}
+                    </select>
+                  </>
+                ) : displayStaffMember ? (
+                  <Link
+                    href={`/staff/${displayStaffMember.id}`}
+                    className="font-medium text-sm md:text-base text-blue-600 hover:text-blue-700 hover:underline"
+                  >
+                    {displayStaffMember.name}
+                  </Link>
+                ) : (
+                  <p className="font-medium text-sm md:text-base text-gray-900">—</p>
+                )}
+              </div>
+              <div className="sm:col-span-2">
                 <p className="text-xs text-gray-500 mb-1">物件</p>
-                <p className="font-medium text-gray-900 text-sm md:text-base">{propertyName || "-"}</p>
+                {isEditing ? (
+                  <InvoicePropertiesEditor
+                    properties={properties}
+                    value={draftPropertyIds}
+                    onChange={setDraftPropertyIds}
+                    customerId={customer?.id}
+                  />
+                ) : (
+                  <InvoicePropertiesList invoice={invoice} />
+                )}
               </div>
               <div>
                 <p className="text-xs text-gray-500 mb-1">関連見積</p>
@@ -313,7 +497,7 @@ export function InvoiceEditClient({
                     projects={projects}
                     customers={customers}
                     value={draftEstimateIdStr}
-                    onChange={setDraftEstimateIdStr}
+                    onChange={handleEstimateChange}
                   />
                 ) : (
                   <InvoiceRelatedEstimate
@@ -376,7 +560,7 @@ export function InvoiceEditClient({
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-gray-100">
               <div>
                 <p className="text-xs text-gray-500 mb-1">原価金額（税込）</p>
-                {isEditing ? (
+                {isEditing && !amountsLocked ? (
                   <input
                     type="text"
                     inputMode="numeric"
@@ -393,6 +577,9 @@ export function InvoiceEditClient({
                   </p>
                 )}
                 <InvoiceCostAmountHint updatedAt={invoice.cost_amount_updated_at} />
+                {amountsLocked && (
+                  <p className="text-[11px] text-amber-700 mt-1">締め済のため変更できません</p>
+                )}
               </div>
               <div>
                 <p className="text-xs text-gray-500 mb-1">利益額（税込）</p>
@@ -450,12 +637,17 @@ export function InvoiceEditClient({
             <div>
               <p className="text-xs text-gray-500 mb-1">支払期限</p>
               {isEditing ? (
-                <input
-                  type="date"
-                  value={draftDueDate}
-                  onChange={(e) => setDraftDueDate(e.target.value)}
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                />
+                <>
+                  <input
+                    type="date"
+                    value={draftDueDate}
+                    onChange={(e) => handleDueDateChange(e.target.value)}
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  />
+                  <p className="text-[11px] text-gray-500 mt-1">
+                    請求日から3週間後を自動入力します。変更した場合はその値を保持します。
+                  </p>
+                </>
               ) : (
                 <p className="font-semibold text-sm md:text-base text-gray-900">{formatDate(invoice.due_date)}</p>
               )}
@@ -464,9 +656,14 @@ export function InvoiceEditClient({
         </div>
 
         <div className="space-y-3">
-          <p className="text-sm font-semibold text-gray-700">請求明細</p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-semibold text-gray-700">請求明細</p>
+            {amountsLocked && (
+              <span className="text-[11px] text-amber-700">締め済 — 明細・合計は編集不可</span>
+            )}
+          </div>
 
-          {isEditing ? (
+          {isEditing && !amountsLocked ? (
             <EstimateLineItemsEditor items={draftItems} onChange={setDraftItems} minRows={0} />
           ) : (
             <DocumentLineItemsReadonlyTable
@@ -482,25 +679,57 @@ export function InvoiceEditClient({
               total={invoice.amount}
               labels={{
                 subtotal: "税抜き合計",
-                tax: "消費税（10%）",
+                tax: taxLabel,
                 total: "請求合計",
               }}
             />
           )}
 
-          {isEditing && (
+          {isEditing && !amountsLocked && (
             <EditableFooterTotalsView
               items={draftItems}
               totals={footerTotals}
               labels={{
                 subtotal: "税抜き合計",
-                tax: "消費税（10%）",
+                tax: taxLabel,
+                total: "請求合計",
+              }}
+            />
+          )}
+
+          {isEditing && amountsLocked && (invoice.items?.length ?? 0) > 0 && (
+            <FooterTotalsReadonly
+              subtotal={viewSubtotal}
+              tax={viewTax}
+              total={invoice.amount}
+              labels={{
+                subtotal: "税抜き合計",
+                tax: taxLabel,
                 total: "請求合計",
               }}
             />
           )}
         </div>
       </CardContent>
+
+      <YesNoDialog
+        open={closeDialog === "yellow_warn"}
+        title="請求締めの確認"
+        message={
+          "ステータスが「黄色無し」のまま請求を締めます。\n本当にいいですか？"
+        }
+        onYes={() => setCloseDialog("final_confirm")}
+        onNo={() => setCloseDialog(null)}
+      />
+      <YesNoDialog
+        open={closeDialog === "final_confirm"}
+        title="請求締め"
+        message={
+          "この請求を締めますか？\n締め後は請求明細・合計・原価など金額関係は変更できません。"
+        }
+        onYes={executeInvoiceClose}
+        onNo={() => setCloseDialog(null)}
+      />
     </Card>
   );
 }

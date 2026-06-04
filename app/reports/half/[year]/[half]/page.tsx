@@ -16,12 +16,7 @@ export default async function HalfReportPage({
   const month = isSecondHalf ? 3 : 9;
 
   return (
-    <MonthlyReportDetailClient
-      year={numericYear}
-      month={month}
-      title={title}
-      showClosingAndCsv={false}
-    />
+    <MonthlyReportDetailClient year={numericYear} month={month} title={title} />
   );
 }
 

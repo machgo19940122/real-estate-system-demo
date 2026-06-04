@@ -14,6 +14,7 @@ import {
   BarChart3,
   Landmark,
   Send,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +31,7 @@ const navigation = [
   { name: "担当者一覧", href: "/staff", icon: UserCircle },
   { name: "集計", href: "/reports", icon: BarChart3 },
   { name: "担当者別集計", href: "/reports/staff", icon: BarChart3 },
+  { name: "システム設定", href: "/settings", icon: Settings },
 ];
 
 export function Sidebar({ onClose }: { onClose?: () => void }) {

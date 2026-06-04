@@ -5,6 +5,11 @@ import {
   calcEstimateTaxableSubtotal,
   type EstimateLineItemForm,
 } from "@/lib/estimate-units";
+import {
+  applyAmountRounding,
+  loadSystemSettings,
+  type AmountRoundingMode,
+} from "@/lib/system-settings";
 
 export const DEFAULT_FOOTER_TAX_RATE = 0.1;
 
@@ -23,15 +28,16 @@ function itemsSignature(items: EstimateLineItemForm[]): string {
 /** 明細から算出するフッター合計。編集モードで税抜・消費税のみ手動上書き可 */
 export function useEditableFooterTotals(
   items: EstimateLineItemForm[],
-  taxRate = DEFAULT_FOOTER_TAX_RATE
+  taxRate = DEFAULT_FOOTER_TAX_RATE,
+  roundingMode: AmountRoundingMode = loadSystemSettings().amount_rounding
 ) {
   const autoSubtotal = useMemo(
     () => calcEstimateTaxableSubtotal(items),
     [items]
   );
   const autoTax = useMemo(
-    () => Math.floor(autoSubtotal * taxRate),
-    [autoSubtotal, taxRate]
+    () => applyAmountRounding(autoSubtotal * taxRate, roundingMode),
+    [autoSubtotal, taxRate, roundingMode]
   );
 
   const [editUnlocked, setEditUnlocked] = useState(false);
@@ -45,14 +51,16 @@ export function useEditableFooterTotals(
       prevSig.current = sig;
       setEditUnlocked(false);
       setManualSubtotal(calcEstimateTaxableSubtotal(items));
-      setManualTax(Math.floor(calcEstimateTaxableSubtotal(items) * taxRate));
+      setManualTax(
+        applyAmountRounding(calcEstimateTaxableSubtotal(items) * taxRate, roundingMode)
+      );
       return;
     }
     if (!editUnlocked) {
       setManualSubtotal(autoSubtotal);
       setManualTax(autoTax);
     }
-  }, [items, autoSubtotal, autoTax, editUnlocked, taxRate]);
+  }, [items, autoSubtotal, autoTax, editUnlocked, taxRate, roundingMode]);
 
   const subtotal = editUnlocked ? manualSubtotal : autoSubtotal;
   const tax = editUnlocked ? manualTax : autoTax;

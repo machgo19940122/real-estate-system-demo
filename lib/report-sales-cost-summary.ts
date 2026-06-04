@@ -1,5 +1,6 @@
 import type { Invoice, RevenueCategory } from "@/src/data/mock";
 import { getPaymentsByInvoiceId } from "@/src/data/mock";
+import { getInvoiceDate } from "@/lib/invoice-dates";
 
 /**
  * 集計画面用: 選択区分で期間内入金・請求税込・原価を集計する。
@@ -75,12 +76,12 @@ export function getInvoicePaidInMonth(invoice: Invoice, year: number, month: num
     .reduce((sum, p) => sum + p.amount, 0);
 }
 
-/** 請求の作成日（created_at）が指定の暦月に含まれるか */
+/** 請求日が指定の暦月に含まれるか */
 export function isInvoiceCreatedInCalendarMonth(
   invoice: Invoice,
   year: number,
   month: number
 ): boolean {
-  const d = new Date(invoice.created_at);
+  const d = new Date(getInvoiceDate(invoice));
   return d.getFullYear() === year && d.getMonth() + 1 === month;
 }

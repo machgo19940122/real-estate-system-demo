@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect, Suspense } from "react";
+import { useMemo, useRef, useState, useEffect, Suspense } from "react";
 import { AppLayout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,8 +11,13 @@ import {
   projects,
   estimates,
   staff,
+  invoices,
   getStaffById,
+  getPropertyById,
 } from "@/src/data/mock";
+import { nextInvoiceNumber } from "@/lib/invoice-number";
+import { useSystemSettings } from "@/lib/use-system-settings";
+import { formatTaxRateLabel } from "@/lib/system-settings";
 import { EditableFooterTotalsView } from "@/components/editable-footer-totals";
 import { formatCurrency } from "@/lib/utils";
 import {
@@ -27,7 +32,9 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { CustomerCombobox } from "@/components/customer-combobox";
-import { PropertyCombobox } from "@/components/property-combobox";
+import { InvoicePropertiesEditor } from "@/components/invoice-properties-editor";
+import { normalizeInvoicePropertyIds } from "@/lib/invoice-properties";
+import { dueDateFromInvoiceDate, todayYmd } from "@/lib/invoice-dates";
 import { EstimateSelect } from "@/components/estimate-select";
 
 function NewInvoiceForm() {
@@ -40,19 +47,54 @@ function NewInvoiceForm() {
   const presetNote = searchParams.get("note") ?? "";
 
   const [customerId, setCustomerId] = useState(presetCustomerId);
-  const [propertyId, setPropertyId] = useState(presetPropertyId);
-  const [staffId, setStaffId] = useState(presetStaffId);
+  const [propertyIds, setPropertyIds] = useState<number[]>(() => {
+    const id = Number(presetPropertyId);
+    return presetPropertyId && Number.isFinite(id) && id > 0 ? [id] : [];
+  });
+  const [staffId, setStaffId] = useState(() => {
+    if (presetStaffId) return presetStaffId;
+    if (presetEstimateId) {
+      const est = estimates.find((e) => e.id === Number(presetEstimateId));
+      if (est?.staff_id != null) return String(est.staff_id);
+    }
+    return "";
+  });
   const [revenueCategory, setRevenueCategory] = useState(presetRevenueCategory);
   const [note, setNote] = useState(presetNote);
   const [subject, setSubject] = useState("");
   const [items, setItems] = useState<EstimateLineItemForm[]>([]);
   const [costIncludingTaxStr, setCostIncludingTaxStr] = useState("");
   const [estimateIdStr, setEstimateIdStr] = useState(presetEstimateId ?? "");
+  const [invoiceDate, setInvoiceDate] = useState(todayYmd);
+  const [printInvoiceDate, setPrintInvoiceDate] = useState("");
+  const [dueDate, setDueDate] = useState(() => dueDateFromInvoiceDate(todayYmd()));
+  const dueDateManualRef = useRef(false);
+
+  const handleInvoiceDateChange = (next: string) => {
+    setInvoiceDate(next);
+    if (!dueDateManualRef.current && next) {
+      setDueDate(dueDateFromInvoiceDate(next));
+    }
+  };
+
+  const handleDueDateChange = (next: string) => {
+    dueDateManualRef.current = true;
+    setDueDate(next);
+  };
 
   const applyEstimate = (estimateId: number, fromPreset = false) => {
     const estimate = estimates.find((e) => e.id === estimateId);
     if (!estimate) return;
     setEstimateIdStr(String(estimateId));
+    const estProject =
+      estimate.project_id != null
+        ? projects.find((p) => p.id === estimate.project_id)
+        : undefined;
+    if (estProject?.property_id != null) {
+      setPropertyIds((prev) =>
+        normalizeInvoicePropertyIds([...prev, estProject.property_id])
+      );
+    }
     if (estimate.items && estimate.items.length > 0) {
       setItems(buildLineItemsFromEstimateItems(estimate.items));
       const firstLine = estimate.items.find((it) => it.name?.trim());
@@ -60,10 +102,10 @@ function NewInvoiceForm() {
         setSubject(firstLine.name.trim());
       }
     }
+    if (estimate.staff_id != null) {
+      setStaffId(String(estimate.staff_id));
+    }
     if (fromPreset) {
-      if (!presetStaffId && estimate.staff_id != null) {
-        setStaffId(String(estimate.staff_id));
-      }
       if (!presetNote.trim() && estimate.note?.trim()) {
         setNote(estimate.note.trim());
       }
@@ -86,7 +128,9 @@ function NewInvoiceForm() {
     applyEstimate(Number(next));
   };
 
-  const footerTotals = useEditableFooterTotals(items);
+  const { settings, taxRateForDate } = useSystemSettings();
+  const taxRate = taxRateForDate(invoiceDate);
+  const footerTotals = useEditableFooterTotals(items, taxRate, settings.amount_rounding);
   const { subtotal, tax, total } = footerTotals;
 
   const newFormProfitMargin = useMemo(
@@ -119,13 +163,29 @@ function NewInvoiceForm() {
     const estimateLine = linked
       ? `\n関連見積: ${linked.estimate_number}`
       : "";
+    const propertyLine =
+      propertyIds.length > 0
+        ? `\n物件: ${propertyIds
+            .map((id) => getPropertyById(id)?.name ?? String(id))
+            .join("、")}`
+        : "";
     alert(
-      "新規請求登録機能（ダミー）\n件名: " +
+      "新規請求登録機能（ダミー）\n請求番号: " +
+        nextInvoiceNumber(invoices) +
+        "\n請求日: " +
+        (invoiceDate || "-") +
+        (printInvoiceDate.trim()
+          ? "\n印刷請求日: " + printInvoiceDate.trim()
+          : "") +
+        "\n支払期限: " +
+        (dueDate || "-") +
+        "\n件名: " +
         (subject.trim() || "-") +
         "\n備考: " +
         (note.trim() || "-") +
         staffLine +
         estimateLine +
+        propertyLine +
         "\n請求明細行数: " +
         items.length +
         costLine
@@ -225,6 +285,36 @@ function NewInvoiceForm() {
                 </div>
 
                 <div className="space-y-2 md:col-span-1">
+                  <label htmlFor="invoice_date" className="text-sm font-medium text-gray-700">
+                    請求日 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="invoice_date"
+                    type="date"
+                    required
+                    value={invoiceDate}
+                    onChange={(e) => handleInvoiceDateChange(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white"
+                  />
+                </div>
+
+                <div className="space-y-2 md:col-span-1">
+                  <label htmlFor="print_invoice_date" className="text-sm font-medium text-gray-700">
+                    印刷請求日
+                  </label>
+                  <input
+                    id="print_invoice_date"
+                    type="date"
+                    value={printInvoiceDate}
+                    onChange={(e) => setPrintInvoiceDate(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white"
+                  />
+                  <p className="text-[11px] text-gray-500">
+                    印刷請求日に値がある場合、請求書にはこちらの日付を優先して表示します。未入力の場合は請求日を使用します。
+                  </p>
+                </div>
+
+                <div className="space-y-2 md:col-span-1">
                   <label htmlFor="due_date" className="text-sm font-medium text-gray-700">
                     支払期限 <span className="text-red-500">*</span>
                   </label>
@@ -232,15 +322,23 @@ function NewInvoiceForm() {
                     id="due_date"
                     type="date"
                     required
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                    value={dueDate}
+                    onChange={(e) => handleDueDateChange(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white"
                   />
+                  <p className="text-[11px] text-gray-500">
+                    請求日から3週間後を自動入力します。変更した場合はその値を保持します。
+                  </p>
                 </div>
 
-                <div className="space-y-2 md:col-span-1">
-                  <label htmlFor="property" className="text-sm font-medium text-gray-700">
-                    物件（任意）
-                  </label>
-                  <PropertyCombobox properties={properties} value={propertyId} onChange={setPropertyId} />
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-sm font-medium text-gray-700">物件（任意・複数可）</label>
+                  <InvoicePropertiesEditor
+                    properties={properties}
+                    value={propertyIds}
+                    onChange={setPropertyIds}
+                    customerId={customerId ? Number(customerId) : undefined}
+                  />
                 </div>
 
                 <div className="space-y-2 md:col-span-1">
@@ -295,7 +393,7 @@ function NewInvoiceForm() {
                       className="space-y-2"
                       labels={{
                         subtotal: "請求税抜き合計",
-                        tax: "消費税（10%）",
+                        tax: formatTaxRateLabel(taxRate),
                         total: "請求合計",
                       }}
                     />

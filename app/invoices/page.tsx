@@ -16,7 +16,6 @@ import {
   invoices,
   projects,
   getCustomerById,
-  getPropertyById,
   getStaffById,
   getInvoiceRevenueCategory,
   getInvoiceStaffId,
@@ -52,6 +51,10 @@ import {
   matchesInvoiceSearchText,
   normalizeInvoiceSearchQuery,
 } from "@/lib/customer-billing";
+import { isInvoiceClosed } from "@/lib/invoice-close";
+import { getInvoiceDate } from "@/lib/invoice-dates";
+import { getInvoicePropertySearchTexts } from "@/lib/invoice-properties";
+import { InvoicePropertiesList } from "@/components/invoice-properties-list";
 import { FileDown, Search, X, Plus } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -68,6 +71,7 @@ function InvoicesPageContent() {
   }, [searchParams]);
   const [categoryFilter, setCategoryFilter] = useState<RevenueCategory | "">("");
   const [statusFilter, setStatusFilter] = useState<"" | "有" | "無し">("");
+  const [closedFilter, setClosedFilter] = useState<"" | "open" | "closed">("");
   const [periodMode, setPeriodMode] = useState<PeriodMode>("all");
   const [periodYear, setPeriodYear] = useState<number>(() =>
     fiscalStartYearContainingDate(new Date())
@@ -111,7 +115,7 @@ function InvoicesPageContent() {
 
   const availableYears = useMemo(() => {
     const years = new Set<number>();
-    for (const inv of invoices) years.add(fiscalStartYearForYmd(inv.created_at));
+    for (const inv of invoices) years.add(fiscalStartYearForYmd(getInvoiceDate(inv)));
     const arr = Array.from(years).filter((y) => Number.isFinite(y));
     arr.sort((a, b) => b - a);
     return arr.length ? arr : [fiscalStartYearContainingDate(new Date())];
@@ -130,13 +134,18 @@ function InvoicesPageContent() {
   const filteredInvoices = useMemo(() => {
     let list = invoices;
     if (periodRange) {
-      list = list.filter((inv) => isWithinYmdRange(inv.created_at, periodRange));
+      list = list.filter((inv) => isWithinYmdRange(getInvoiceDate(inv), periodRange));
     }
     if (categoryFilter) {
       list = list.filter((inv) => getInvoiceRevenueCategory(inv) === categoryFilter);
     }
     if (statusFilter) {
       list = list.filter((inv) => inv.status === statusFilter);
+    }
+    if (closedFilter === "closed") {
+      list = list.filter((inv) => isInvoiceClosed(inv));
+    } else if (closedFilter === "open") {
+      list = list.filter((inv) => !isInvoiceClosed(inv));
     }
     if (!searchQuery.trim()) return list;
     const query = normalizeInvoiceSearchQuery(searchQuery);
@@ -148,7 +157,6 @@ function InvoicesPageContent() {
           : project
             ? getCustomerById(project.customer_id)
             : undefined;
-      const property = project ? getPropertyById(project.property_id) : undefined;
       const invoiceStaffId = getInvoiceStaffId(invoice);
       const staffMember =
         invoiceStaffId != null ? getStaffById(invoiceStaffId) : undefined;
@@ -159,14 +167,17 @@ function InvoicesPageContent() {
       return (
         matchesInvoiceSearchText(invoice.invoice_number, query) ||
         billingTexts.some((t) => matchesInvoiceSearchText(t, query)) ||
-        matchesInvoiceSearchText(property?.name ?? "", query) ||
+        getInvoicePropertySearchTexts(invoice).some((name) =>
+          matchesInvoiceSearchText(name, query)
+        ) ||
         matchesInvoiceSearchText(staffMember?.name ?? "", query) ||
         matchesInvoiceSearchText(paymentStatus, query) ||
         matchesInvoiceSearchText(manualStatus, query) ||
-        matchesInvoiceSearchText(manualStatusLabel, query)
+        matchesInvoiceSearchText(manualStatusLabel, query) ||
+        matchesInvoiceSearchText(isInvoiceClosed(invoice) ? "締め済" : "未締め", query)
       );
     });
-  }, [searchQuery, categoryFilter, statusFilter, periodRange]);
+  }, [searchQuery, categoryFilter, statusFilter, closedFilter, periodRange]);
 
   const filteredIds = useMemo(
     () => filteredInvoices.map((inv) => inv.id),
@@ -278,6 +289,17 @@ function InvoicesPageContent() {
                   <option value="">全ステータス</option>
                   <option value="有">黄色有</option>
                   <option value="無し">黄色無し</option>
+                </select>
+                <select
+                  value={closedFilter}
+                  onChange={(e) =>
+                    setClosedFilter((e.target.value || "") as "" | "open" | "closed")
+                  }
+                  className="py-3 px-4 min-w-[140px] border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all shadow-sm bg-white"
+                >
+                  <option value="">締め：すべて</option>
+                  <option value="open">未締め</option>
+                  <option value="closed">締め済</option>
                 </select>
               </div>
 
@@ -435,6 +457,7 @@ function InvoicesPageContent() {
                 {(searchQuery ||
                   categoryFilter ||
                   statusFilter ||
+                  closedFilter ||
                   periodRange ||
                   periodMode === "all") && (
                   <span className="text-sm text-gray-500">{filteredInvoices.length}件</span>
@@ -494,6 +517,7 @@ function InvoicesPageContent() {
                   <TableHead className="font-semibold">金額</TableHead>
                   <TableHead className="font-semibold">支払期限</TableHead>
                   <TableHead className="font-semibold">ステータス</TableHead>
+                  <TableHead className="font-semibold">締め</TableHead>
                   <TableHead className="font-semibold">入金状況</TableHead>
                   <TableHead className="font-semibold">請求日</TableHead>
                   <TableHead className="font-semibold">操作</TableHead>
@@ -509,7 +533,6 @@ function InvoicesPageContent() {
           : project
             ? getCustomerById(project.customer_id)
             : undefined;
-                  const property = project ? getPropertyById(project.property_id) : undefined;
                   const invoiceStaffId = getInvoiceStaffId(invoice);
                   const staffMember =
                     invoiceStaffId != null ? getStaffById(invoiceStaffId) : undefined;
@@ -560,17 +583,8 @@ function InvoicesPageContent() {
                           getInvoiceBillingAddresseeDisplayName(invoice, undefined) || "-"
                         )}
                       </TableCell>
-                      <TableCell>
-                        {property ? (
-                          <Link
-                            href={`/properties/${property.id}`}
-                            className="text-gray-700 hover:text-blue-600 hover:underline"
-                          >
-                            {property.name}
-                          </Link>
-                        ) : (
-                          "-"
-                        )}
+                      <TableCell className="min-w-[120px] max-w-[200px]">
+                        <InvoicePropertiesList invoice={invoice} emptyText="-" />
                       </TableCell>
                       <TableCell className="text-gray-700">
                         {staffMember ? (
@@ -610,20 +624,33 @@ function InvoicesPageContent() {
                       </TableCell>
                       <TableCell>
                         <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                            isInvoiceClosed(invoice)
+                              ? "bg-green-100 text-green-800"
+                              : "bg-gray-50 text-gray-600 border border-gray-200"
+                          }`}
+                        >
+                          {isInvoiceClosed(invoice) ? "締め済" : "未締め"}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span
                           className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getPaymentStatusChipClassName(paymentStatus)}`}
                         >
                           {paymentStatus}
                         </span>
                       </TableCell>
-                      <TableCell>{formatDate(invoice.created_at)}</TableCell>
+                      <TableCell>{formatDate(getInvoiceDate(invoice))}</TableCell>
                       <TableCell>
                         <Button
                           variant="outline"
-                          size="sm"
+                          size="icon"
+                          className="h-8 w-8"
+                          title="PDF出力"
+                          aria-label={`${invoice.invoice_number}のPDF出力`}
                           onClick={() => issueInvoicePdfDemo([invoice.invoice_number])}
                         >
-                          <FileDown className="h-4 w-4 mr-2" />
-                          PDF出力
+                          <FileDown className="h-4 w-4" />
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -631,7 +658,7 @@ function InvoicesPageContent() {
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={12} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={13} className="text-center py-8 text-gray-500">
                       検索結果が見つかりませんでした
                     </TableCell>
                   </TableRow>

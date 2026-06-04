@@ -17,6 +17,8 @@ import {
 } from "@/lib/document-line-items";
 import { type EstimateLineItemForm } from "@/lib/estimate-units";
 import { useEditableFooterTotals } from "@/lib/use-editable-footer-totals";
+import { formatTaxRateLabel } from "@/lib/system-settings";
+import { useSystemSettings } from "@/lib/use-system-settings";
 import { type Estimate, type RevenueCategory } from "@/src/data/mock";
 
 export function EstimateEditClient({
@@ -40,7 +42,14 @@ export function EstimateEditClient({
     initialEstimate.items?.map(persistedLineToForm) ?? []
   );
 
-  const footerTotals = useEditableFooterTotals(draftItems);
+  const { settings, taxRateForDate } = useSystemSettings();
+  const taxRate = taxRateForDate(estimate.created_at);
+  const taxLabel = formatTaxRateLabel(taxRate);
+  const footerTotals = useEditableFooterTotals(
+    draftItems,
+    taxRate,
+    settings.amount_rounding
+  );
   const { subtotal, tax, total } = footerTotals;
 
   const syncDraftFromEstimate = () => {
@@ -196,7 +205,7 @@ export function EstimateEditClient({
                 emphasizeTotal
                 labels={{
                   subtotal: "見積税抜き合計",
-                  tax: "消費税（10%）",
+                  tax: taxLabel,
                   total: "見積合計",
                 }}
               />
@@ -209,7 +218,7 @@ export function EstimateEditClient({
                 emphasizeTotal
                 labels={{
                   subtotal: "見積税抜き合計",
-                  tax: "消費税（10%）",
+                  tax: taxLabel,
                   total: "見積合計",
                 }}
               />

@@ -63,7 +63,6 @@ export default async function InvoiceDetailPage({
           initialInvoice={invoice}
           customer={customer}
           customerName={customer?.name}
-          propertyName={property?.name}
           relatedEstimateId={invoice.estimate_id}
           relatedEstimateNumber={relatedEstimate?.estimate_number}
           paymentStatus={currentStatus}

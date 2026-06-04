@@ -31,7 +31,7 @@ import {
 } from "@/lib/report-sales-cost-summary";
 import { ReportSalesSummaryStats } from "@/components/report-sales-summary-stats";
 import { formatProfitMarginRate } from "@/lib/invoice-cost-metrics";
-import { ArrowLeft, Download, Lock, CheckCircle, TrendingUp, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, Download, TrendingUp, ChevronDown, ChevronUp } from "lucide-react";
 import Link from "next/link";
 
 const ALL_CATEGORIES: RevenueCategory[] = ["注文", "建売", "土地", "リフォーム", "仲介料"];
@@ -60,17 +60,13 @@ interface MonthlyReportDetailClientProps {
   year: number;
   month: number;
   title?: string;
-  /** 月次集計のみ締め処理・CSVを表示。年次・半期では false を渡す */
-  showClosingAndCsv?: boolean;
 }
 
 export function MonthlyReportDetailClient({
   year,
   month,
   title,
-  showClosingAndCsv = true,
 }: MonthlyReportDetailClientProps) {
-  const [isClosed, setIsClosed] = useState(false);
   const [sectionIncluded, setSectionIncluded] =
     useState<Record<RevenueCategory, boolean>>(defaultSectionIncluded);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -231,13 +227,6 @@ export function MonthlyReportDetailClient({
   const isAllSelected = selectedCategories.length === ALL_CATEGORIES.length;
   const isNoneSelected = selectedCategories.length === 0;
 
-  const handleClose = () => {
-    if (confirm(`${year}年${month}月の集計を締めますか？締め後は編集できません。`)) {
-      setIsClosed(true);
-      // 実際の実装ではAPI呼び出し
-    }
-  };
-
   const handleExportCSV = () => {
     // CSV生成（基本実装）
     const csvRows: string[] = [];
@@ -299,37 +288,13 @@ export function MonthlyReportDetailClient({
               <p className="text-gray-600 mt-1 text-sm md:text-base">請求先別の詳細集計</p>
             </div>
           </div>
-          {showClosingAndCsv && (
-            <div className="flex gap-2 flex-wrap">
-              {!isClosed && (
-                <Button onClick={handleClose} variant="outline" size="sm" className="flex-1 md:flex-none">
-                  <Lock className="h-4 w-4 mr-2" />
-                  締め処理
-                </Button>
-              )}
-              <Button onClick={handleExportCSV} size="sm" className="flex-1 md:flex-none">
-                <Download className="h-4 w-4 mr-2" />
-                CSV出力
-              </Button>
-            </div>
-          )}
+          <div className="flex gap-2 flex-wrap">
+            <Button onClick={handleExportCSV} size="sm" className="flex-1 md:flex-none">
+              <Download className="h-4 w-4 mr-2" />
+              CSV出力
+            </Button>
+          </div>
         </div>
-
-        {showClosingAndCsv && isClosed && (
-          <Card className="border-0 shadow-lg bg-green-50 border-green-200">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <CheckCircle className="h-5 w-5 text-green-600" />
-                <div>
-                  <p className="font-semibold text-green-900">締め処理済み</p>
-                  <p className="text-sm text-green-700">
-                    この月の集計は締められています。編集はできません。
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* 売上サマリー＋区分選択（集計一覧と同じUI） */}
         <Card className="border-0 shadow-lg overflow-hidden">

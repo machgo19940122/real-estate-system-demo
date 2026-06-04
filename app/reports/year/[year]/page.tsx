@@ -13,12 +13,7 @@ export default async function YearReportPage({
   const month = 3;
 
   return (
-    <MonthlyReportDetailClient
-      year={numericYear}
-      month={month}
-      title={title}
-      showClosingAndCsv={false}
-    />
+    <MonthlyReportDetailClient year={numericYear} month={month} title={title} />
   );
 }
 

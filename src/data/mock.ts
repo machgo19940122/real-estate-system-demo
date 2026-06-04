@@ -154,6 +154,8 @@ export interface Invoice {
   id: number;
   customer_id?: number;
   property_id?: number;
+  /** 請求に紐づく物件ID（複数可。請求書印字用） */
+  property_ids?: number[];
   /** 案件ID（未廃止時はこちらで顧客・物件を紐づけ） */
   project_id?: number;
   /** 元見積ID（見積から請求作成した場合） */
@@ -167,6 +169,10 @@ export interface Invoice {
   subject?: string;
   note?: string;
   amount: number;
+  /** 請求日（YYYY-MM-DD）。未設定時は created_at の日付を請求日として扱う */
+  invoice_date?: string;
+  /** 請求書印字用の請求日（YYYY-MM-DD）。未設定時は請求日を使用 */
+  print_invoice_date?: string;
   due_date: string;
   status: InvoiceStatus;
   created_at: string;
@@ -192,6 +198,12 @@ export interface Invoice {
    * 税抜売上 > 0 のとき (税抜売上−原価額)÷税抜売上 で算出して保持する想定。
    */
   profit_margin_rate?: number;
+  /** 請求締め済み（締め後は金額・明細・原価は変更不可） */
+  is_closed?: boolean;
+  /** 請求締め日時（ISO 8601 ローカル相当） */
+  closed_at?: string;
+  /** 請求書PDFの発行回数 */
+  pdf_issue_count?: number;
 }
 
 // 入金レコード（1つの請求に対して複数可能）
@@ -247,11 +259,9 @@ export function getInvoiceRevenueCategory(invoice: Invoice): RevenueCategory {
   return getRevenueCategory(project.type);
 }
 
-// 請求書から担当者IDを取得（請求の staff_id を優先、なければ案件から）
+/** 請求に登録された担当者ID（未設定時は undefined） */
 export function getInvoiceStaffId(invoice: Invoice): number | undefined {
-  if (invoice.staff_id != null) return invoice.staff_id;
-  const project = projects.find((p) => p.id === invoice.project_id);
-  return project?.staff_id;
+  return invoice.staff_id ?? undefined;
 }
 
 export interface Staff {
@@ -584,6 +594,8 @@ import {
   normalizePersistedLineItem,
   persistedLineToForm,
 } from "@/lib/document-line-items";
+import { getInvoiceDate } from "@/lib/invoice-dates";
+import { calcTaxAmount } from "@/lib/system-settings";
 
 const est010DemoTotals = getEst010DemoTotals();
 
@@ -620,11 +632,18 @@ export const invoices: Invoice[] = [
   {
     id: 1,
     project_id: 1,
+    property_ids: [1, 3],
     estimate_id: 1,
-    invoice_number: "INV-001",
+    staff_id: 2,
+    invoice_number: "580001",
     billing_addressee_name: "株式会社リフォームサポート 御中",
     subject: "内装リフォーム工事・キッチン交換代金",
+    is_closed: true,
+    closed_at: "2026-03-11T10:00:00",
+    pdf_issue_count: 1,
     note: "見積EST-001に基づく請求。",
+    invoice_date: "2025-03-07",
+    print_invoice_date: "2025-03-10",
     amount: 550000,
     due_date: "2025-04-30",
     status: "有",
@@ -644,7 +663,7 @@ export const invoices: Invoice[] = [
     id: 2,
     project_id: 2,
     estimate_id: 2,
-    invoice_number: "INV-002",
+    invoice_number: "580002",
     subject: "建売戸建売買代金",
     note: "契約締結後に請求書PDF送付予定。",
     amount: 198000000,
@@ -663,7 +682,7 @@ export const invoices: Invoice[] = [
     id: 3,
     project_id: 3,
     estimate_id: 3,
-    invoice_number: "INV-003",
+    invoice_number: "580003",
     billing_addressee_name: "有限会社グローバルエステート 御中",
     subject: "仲介手数料",
     amount: 27500000,
@@ -681,8 +700,9 @@ export const invoices: Invoice[] = [
   {
     id: 4,
     project_id: 4,
+    property_ids: [4, 5],
     estimate_id: 5,
-    invoice_number: "INV-004",
+    invoice_number: "580004",
     billing_addressee_name: "新宿プロパティ管理組合 御中",
     subject: "中古マンション売買代金",
     amount: 385000000,
@@ -701,7 +721,7 @@ export const invoices: Invoice[] = [
     id: 5,
     project_id: 5,
     estimate_id: 4,
-    invoice_number: "INV-005",
+    invoice_number: "580005",
     subject: "キッチンリフォーム工事代金",
     amount: 880000,
     due_date: "2025-05-20",
@@ -719,9 +739,11 @@ export const invoices: Invoice[] = [
     id: 6,
     project_id: 6,
     estimate_id: 6,
-    invoice_number: "INV-006",
+    invoice_number: "580006",
     billing_addressee_name: "建設デモ株式会社 御中",
     subject: "注文住宅工事代金",
+    is_closed: true,
+    closed_at: "2026-02-21T09:30:00",
     note: "入金確認済み（振込）。",
     amount: 49500000,
     due_date: "2026-04-10",
@@ -739,7 +761,7 @@ export const invoices: Invoice[] = [
     id: 7,
     project_id: 7,
     estimate_id: 7,
-    invoice_number: "INV-007",
+    invoice_number: "580007",
     subject: "オフィスリノベーション工事代金",
     amount: 1320000,
     due_date: "2026-04-15",
@@ -756,7 +778,7 @@ export const invoices: Invoice[] = [
   {
     id: 8,
     project_id: 8,
-    invoice_number: "INV-008",
+    invoice_number: "580008",
     subject: "土地売買代金",
     amount: 104500000,
     due_date: "2026-04-20",
@@ -770,7 +792,7 @@ export const invoices: Invoice[] = [
     id: 9,
     project_id: 9,
     estimate_id: 9,
-    invoice_number: "INV-009",
+    invoice_number: "580009",
     billing_addressee_name: "仲介請求宛先デモ 御中",
     subject: "仲介手数料",
     amount: 19800000,
@@ -789,7 +811,7 @@ export const invoices: Invoice[] = [
     id: 10,
     project_id: 11,
     estimate_id: 11,
-    invoice_number: "INV-010",
+    invoice_number: "580010",
     subject: "土地仲介手数料",
     amount: 13200000,
     due_date: "2026-05-10",
@@ -912,7 +934,7 @@ export function updateEstimate(
     (next.items ?? []).map((it) => persistedLineToForm(it))
   );
   next.subtotal = subtotal;
-  next.tax = Math.floor(subtotal * 0.1);
+  next.tax = calcTaxAmount(subtotal, next.created_at);
   next.total = next.subtotal + next.tax;
   estimates[idx] = next;
   return next;
@@ -923,20 +945,62 @@ function normalizeInvoiceItems(items: InvoiceItem[] | undefined): InvoiceItem[] 
   return items.map((it) => normalizePersistedLineItem(it));
 }
 
+const INVOICE_AMOUNT_PATCH_KEYS = [
+  "items",
+  "amount",
+  "cost_amount_including_tax",
+  "cost_amount_excluding_tax",
+  "cost_rate",
+  "profit_margin_rate",
+  "cost_amount_updated_at",
+] as const;
+
+function stripAmountPatchForClosedInvoice(
+  patch: Partial<Invoice>,
+  closed: boolean
+): Partial<Invoice> {
+  if (!closed) return patch;
+  const next = { ...patch };
+  for (const key of INVOICE_AMOUNT_PATCH_KEYS) {
+    delete next[key as keyof Invoice];
+  }
+  return next;
+}
+
+export function closeInvoice(id: number): Invoice {
+  const idx = invoices.findIndex((i) => i.id === id);
+  if (idx < 0) throw new Error(`Invoice not found: ${id}`);
+  if (invoices[idx].is_closed) return invoices[idx];
+  invoices[idx] = {
+    ...invoices[idx],
+    is_closed: true,
+    closed_at: invoiceClosedAtNow(),
+  };
+  return invoices[idx];
+}
+
+function invoiceClosedAtNow(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
 export function updateInvoice(
   id: number,
   patch: Partial<Omit<Invoice, "id" | "invoice_number" | "created_at" | "project_id">>
 ): Invoice {
   const idx = invoices.findIndex((i) => i.id === id);
   if (idx < 0) throw new Error(`Invoice not found: ${id}`);
-  const next: Invoice = { ...invoices[idx], ...patch };
+  const current = invoices[idx];
+  const safePatch = stripAmountPatchForClosedInvoice(patch, current.is_closed === true);
+  const next: Invoice = { ...current, ...safePatch };
   next.items = normalizeInvoiceItems(next.items);
-  if (next.items && next.items.length > 0) {
+  if (!next.is_closed && next.items && next.items.length > 0) {
     if (patch.amount === undefined) {
       const subtotal = calcEstimateTaxableSubtotal(
         next.items.map((it) => persistedLineToForm(it))
       );
-      const tax = Math.floor(subtotal * 0.1);
+      const tax = calcTaxAmount(subtotal, getInvoiceDate(next));
       next.amount = subtotal + tax;
     }
   }

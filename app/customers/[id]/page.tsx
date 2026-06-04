@@ -18,8 +18,8 @@ import {
   calculateInvoiceStatus,
   getNegotiationHistoriesByCustomerId,
 } from "@/src/data/mock";
-import { formatCurrency, formatDate } from "@/lib/utils";
-import { ArrowLeft, Mail, Phone, MapPin, Calendar, Building2 } from "lucide-react";
+import { formatCurrency, formatDate, getPaymentStatusChipClassName } from "@/lib/utils";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CustomerDetailClient } from "./client";
@@ -40,13 +40,25 @@ export default async function CustomerDetailPage({
   const customerProjects = projects.filter((p) => p.customer_id === customer.id);
   const customerProjectIds = customerProjects.map((p) => p.id);
 
-  const customerEstimates = estimates.filter((e) =>
+  const sortByCreatedAtDesc = <T extends { created_at: string }>(items: T[]) =>
+    items
+      .slice()
+      .sort((a, b) =>
+        a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0
+      );
+
+  const customerEstimatesAll = estimates.filter((e) =>
     customerProjectIds.includes((e as any).project_id)
   );
+  const customerEstimates = sortByCreatedAtDesc(customerEstimatesAll).slice(0, 3);
 
-  const customerInvoices = invoices.filter((inv) =>
+  const customerInvoicesAll = invoices.filter((inv) =>
     customerProjectIds.includes((inv as any).project_id)
   );
+  const customerInvoices = sortByCreatedAtDesc(customerInvoicesAll).slice(0, 3);
+
+  const estimatesListHref = `/estimates?customer=${encodeURIComponent(customer.name)}`;
+  const invoicesListHref = `/invoices?customer=${encodeURIComponent(customer.name)}`;
 
   const negotiationHistories = getNegotiationHistoriesByCustomerId(customer.id);
 
@@ -77,8 +89,14 @@ export default async function CustomerDetailPage({
         <div className="grid gap-6 md:grid-cols-2">
           {/* この顧客の見積 */}
           <Card className="border-0 shadow-lg">
-            <CardHeader className="border-b flex items-center justify-between">
+            <CardHeader className="border-b flex items-center justify-between gap-3">
               <CardTitle>この顧客の見積</CardTitle>
+              <Link href={estimatesListHref}>
+                <Button variant="outline" size="sm">
+                  見積一覧へ
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              </Link>
             </CardHeader>
             <CardContent className="pt-6">
               {customerEstimates.length > 0 ? (
@@ -138,13 +156,24 @@ export default async function CustomerDetailPage({
                   この顧客の見積はまだありません
                 </p>
               )}
+              {customerEstimatesAll.length > 3 && (
+                <p className="text-xs text-gray-500 mt-3 text-center">
+                  最新3件を表示しています（全{customerEstimatesAll.length}件）
+                </p>
+              )}
             </CardContent>
           </Card>
 
           {/* この顧客の請求 */}
           <Card className="border-0 shadow-lg">
-            <CardHeader className="border-b flex items-center justify-between">
+            <CardHeader className="border-b flex items-center justify-between gap-3">
               <CardTitle>この顧客の請求</CardTitle>
+              <Link href={invoicesListHref}>
+                <Button variant="outline" size="sm">
+                  請求一覧へ
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              </Link>
             </CardHeader>
             <CardContent className="pt-6">
               {customerInvoices.length > 0 ? (
@@ -208,7 +237,7 @@ export default async function CustomerDetailPage({
                             </TableCell>
                             <TableCell className="text-xs md:text-sm">
                               <span
-                                className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium bg-gray-100 text-gray-800"
+                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ${getPaymentStatusChipClassName(status)}`}
                               >
                                 {status}
                               </span>
@@ -222,6 +251,11 @@ export default async function CustomerDetailPage({
               ) : (
                 <p className="text-gray-500 text-center py-4">
                   この顧客の請求はまだありません
+                </p>
+              )}
+              {customerInvoicesAll.length > 3 && (
+                <p className="text-xs text-gray-500 mt-3 text-center">
+                  最新3件を表示しています（全{customerInvoicesAll.length}件）
                 </p>
               )}
             </CardContent>

@@ -10,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { properties, projects, estimates, invoices, customers, getCustomerById, calculateInvoiceStatus } from "@/src/data/mock";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, getPaymentStatusChipClassName } from "@/lib/utils";
 import { ArrowLeft, MapPin, User, Calendar, Building2, FileText } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -214,9 +214,7 @@ export default async function PropertyDetailPage({
                             </TableCell>
                             <TableCell className="text-xs md:text-sm">
                               <span
-                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
-                                  "bg-gray-100 text-gray-800"
-                                }`}
+                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ${getPaymentStatusChipClassName(status)}`}
                               >
                                 {status}
                               </span>

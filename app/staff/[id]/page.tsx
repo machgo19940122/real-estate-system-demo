@@ -19,7 +19,7 @@ import {
   getInvoiceStaffId,
   calculateInvoiceStatus,
 } from "@/src/data/mock";
-import { formatDate, formatCurrency } from "@/lib/utils";
+import { formatDate, formatCurrency, getPaymentStatusChipClassName } from "@/lib/utils";
 import { ArrowLeft, Mail, Phone, User, Calendar, Briefcase, FileText, Receipt } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -249,7 +249,9 @@ export default async function StaffDetailPage({
                             </span>
                           </TableCell>
                           <TableCell className="text-xs md:text-sm">
-                            <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium bg-yellow-100 text-yellow-800">
+                            <span
+                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ${getPaymentStatusChipClassName(status)}`}
+                            >
                               {status}
                             </span>
                           </TableCell>

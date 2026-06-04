@@ -10,7 +10,7 @@ import {
   invoices,
   calculateInvoiceStatus,
 } from "@/src/data/mock";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, getPaymentStatusChipClassName } from "@/lib/utils";
 import {
   ArrowLeft,
   User,
@@ -224,7 +224,7 @@ export default async function ProjectDetailPage({
                           <div className="text-right">
                             <p className="font-semibold">{formatCurrency(invoice.amount)}</p>
                             <span
-                              className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium mt-1 bg-gray-100 text-gray-800"
+                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium mt-1 ${getPaymentStatusChipClassName(calculateInvoiceStatus(invoice))}`}
                             >
                               {calculateInvoiceStatus(invoice)}
                             </span>

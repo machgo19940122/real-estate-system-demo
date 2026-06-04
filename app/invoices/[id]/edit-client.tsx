@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Save, X, Pencil, Trash2, Receipt, AlertCircle } from "lucide-react";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, getPaymentStatusChipClassName } from "@/lib/utils";
 import {
   type Invoice,
   type InvoiceItem,
@@ -362,7 +362,9 @@ export function InvoiceEditClient({
             </div>
             <div>
               <p className="text-xs text-gray-500 mb-1">入金状況</p>
-              <span className="inline-flex items-center rounded-full px-3 py-1 text-xs md:text-sm font-medium bg-gray-100 text-gray-800">
+              <span
+                className={`inline-flex items-center rounded-full px-3 py-1 text-xs md:text-sm font-medium ${getPaymentStatusChipClassName(paymentStatus)}`}
+              >
                 {paymentStatus}
               </span>
             </div>

@@ -3,9 +3,9 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Building2, Calendar, Mail, MapPin, Pencil, Phone, Printer, Save, X } from "lucide-react";
+import { Building2, Pencil, Save, X, Loader, Printer } from "lucide-react";
 import { formatDate } from "@/lib/utils";
-import { type Customer } from "@/src/data/mock";
+import { CUSTOMER_CATEGORIES, type Customer, type CustomerCategory } from "@/src/data/mock";
 import { CustomerEnvelopeLabelModal } from "@/components/customer-envelope-label-modal";
 
 export function CustomerDetailClient({ initialCustomer }: { initialCustomer: Customer }) {
@@ -14,22 +14,65 @@ export function CustomerDetailClient({ initialCustomer }: { initialCustomer: Cus
   const [draft, setDraft] = useState<Customer>(initialCustomer);
   const [labelModalOpen, setLabelModalOpen] = useState(false);
 
+  // 住所編集用
+  const [postalCode, setPostalCode] = useState("");
+  const [prefecture, setPrefecture] = useState("");
+  const [address, setAddress] = useState("");
+  const [isLoadingAddress, setIsLoadingAddress] = useState(false);
+  const [addressError, setAddressError] = useState("");
+
   const canSave = useMemo(() => {
     return (
       draft.name.trim().length > 0 &&
       draft.phone.trim().length > 0 &&
-      draft.email.trim().length > 0 &&
       draft.address.trim().length > 0
     );
   }, [draft]);
 
+  const handleFetchAddress = async () => {
+    if (!postalCode.trim()) {
+      setAddressError("郵便番号を入力してください");
+      return;
+    }
+
+    setIsLoadingAddress(true);
+    setAddressError("");
+
+    try {
+      const response = await fetch(
+        `https://zipcloud.ibsnet.co.jp/api/search?zipcode=${postalCode}`
+      );
+      const data = await response.json();
+
+      if (data.results && data.results.length > 0) {
+        const result = data.results[0];
+        const newPrefecture = result.address1;
+        const newAddress = `${result.address2}${result.address3}`;
+        setPrefecture(newPrefecture);
+        setAddress(newAddress);
+        // draftのaddressも更新
+        setDraft({ ...draft, address: newPrefecture + newAddress });
+      } else {
+        setAddressError("郵便番号が見つかりません");
+      }
+    } catch (err) {
+      setAddressError("住所の取得に失敗しました");
+    } finally {
+      setIsLoadingAddress(false);
+    }
+  };
+
   const startEdit = () => {
     setDraft(customer);
+    setPostalCode("");
+    setPrefecture("");
+    setAddress(customer.address || "");
     setIsEditing(true);
   };
 
   const cancelEdit = () => {
     setDraft(customer);
+    setAddressError("");
     setIsEditing(false);
   };
 
@@ -38,13 +81,14 @@ export function CustomerDetailClient({ initialCustomer }: { initialCustomer: Cus
       ...customer,
       name: draft.name.trim(),
       phone: draft.phone.trim(),
-      email: draft.email.trim(),
+      email: (draft.email ?? "").trim(),
+      phone2: draft.phone2?.trim() || undefined,
+      honorific: draft.honorific?.trim() || undefined,
+      category: draft.category || undefined,
       address: draft.address.trim(),
-      billing_contact_name: draft.billing_contact_name?.trim() || undefined,
-      billing_contact_email: draft.billing_contact_email?.trim() || undefined,
-      billing_closing_day: draft.billing_closing_day?.trim() || undefined,
-      billing_payment_site: draft.billing_payment_site?.trim() || undefined,
-      billing_payment_method: draft.billing_payment_method?.trim() || undefined,
+      postal_code: draft.postal_code?.trim() || undefined,
+      staff_name: draft.staff_name?.trim() || undefined,
+      memo: draft.memo?.trim() || undefined,
     };
     setCustomer(updated);
     setDraft(updated);
@@ -90,141 +134,261 @@ export function CustomerDetailClient({ initialCustomer }: { initialCustomer: Cus
           )}
         </div>
       </CardHeader>
-      <CardContent className="pt-6 space-y-6">
+      <CardContent className="pt-6">
         <div className="grid gap-6 md:grid-cols-2">
-          <div className="space-y-4">
-            <div className="flex items-start gap-3">
-              <Phone className="h-5 w-5 text-gray-400 mt-0.5" />
-              <div className="w-full">
-                <p className="text-sm text-gray-500">電話番号</p>
-                {isEditing ? (
-                  <input
-                    value={draft.phone}
-                    onChange={(e) => setDraft({ ...draft, phone: e.target.value })}
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                  />
-                ) : (
-                  <p className="font-medium">{customer.phone}</p>
-                )}
-              </div>
-            </div>
+          <div>
+            <p className="text-sm text-gray-500 mb-2">カテゴリ</p>
+            {isEditing ? (
+              <select
+                value={draft.category ?? ""}
+                onChange={(e) =>
+                  setDraft({
+                    ...draft,
+                    category: (e.target.value || undefined) as CustomerCategory | undefined,
+                  })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
+              >
+                <option value="">選択してください</option>
+                {CUSTOMER_CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <p className="font-medium">{customer.category || "-"}</p>
+            )}
+          </div>
+          <div className="hidden md:block" aria-hidden="true" />
 
-            <div className="flex items-start gap-3">
-              <Mail className="h-5 w-5 text-gray-400 mt-0.5" />
-              <div className="w-full">
-                <p className="text-sm text-gray-500">メールアドレス</p>
-                {isEditing ? (
-                  <input
-                    value={draft.email}
-                    onChange={(e) => setDraft({ ...draft, email: e.target.value })}
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                  />
-                ) : (
-                  <p className="font-medium">{customer.email}</p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <MapPin className="h-5 w-5 text-gray-400 mt-0.5" />
-              <div className="w-full">
-                <p className="text-sm text-gray-500">住所</p>
-                {isEditing ? (
-                  <input
-                    value={draft.address}
-                    onChange={(e) => setDraft({ ...draft, address: e.target.value })}
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                  />
-                ) : (
-                  <p className="font-medium">{customer.address}</p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <Calendar className="h-5 w-5 text-gray-400 mt-0.5" />
-              <div>
-                <p className="text-sm text-gray-500">登録日</p>
-                <p className="font-medium">
-                  {customer.created_at ? formatDate(customer.created_at) : "-"}
-                </p>
-              </div>
-            </div>
+          {/* 顧客名・宛先 */}
+          <div>
+            <p className="text-sm text-gray-500 mb-2">顧客名</p>
+            {isEditing ? (
+              <input
+                type="text"
+                value={draft.name}
+                onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
+              />
+            ) : (
+              <p className="font-medium">{customer.name}</p>
+            )}
           </div>
 
-          <div className="space-y-3">
-            <div>
-              <p className="text-sm text-gray-500 mb-1">請求先担当者</p>
-              {isEditing ? (
+          <div>
+            <p className="text-sm text-gray-500 mb-2">宛先</p>
+            {isEditing ? (
+              <select
+                value={draft.honorific ?? ""}
+                onChange={(e) => setDraft({ ...draft, honorific: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
+              >
+                <option value="">選択してください</option>
+                <option value="様">様</option>
+                <option value="御中">御中</option>
+              </select>
+            ) : (
+              <p className="font-medium">{customer.honorific || "-"}</p>
+            )}
+          </div>
+
+          {/* Row 2: 電話番号・電話番号２ */}
+          <div>
+            <p className="text-sm text-gray-500 mb-2">電話番号</p>
+            {isEditing ? (
+              <input
+                type="tel"
+                value={draft.phone}
+                onChange={(e) => setDraft({ ...draft, phone: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
+              />
+            ) : (
+              <p className="font-medium">{customer.phone}</p>
+            )}
+          </div>
+
+          <div>
+            <p className="text-sm text-gray-500 mb-2">電話番号２</p>
+            {isEditing ? (
+              <input
+                type="tel"
+                value={draft.phone2 ?? ""}
+                onChange={(e) => setDraft({ ...draft, phone2: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
+              />
+            ) : (
+              <p className="font-medium">{customer.phone2 || "-"}</p>
+            )}
+          </div>
+
+          {/* Row 3: メールアドレス・担当者 */}
+          <div>
+            <p className="text-sm text-gray-500 mb-2">メールアドレス</p>
+            {isEditing ? (
+              <input
+                type="email"
+                value={draft.email}
+                onChange={(e) => setDraft({ ...draft, email: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
+              />
+            ) : (
+              <p className="font-medium">{customer.email}</p>
+            )}
+          </div>
+
+          <div>
+            <p className="text-sm text-gray-500 mb-2">担当者</p>
+            {isEditing ? (
+              <input
+                type="text"
+                value={draft.staff_name ?? ""}
+                onChange={(e) => setDraft({ ...draft, staff_name: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
+              />
+            ) : (
+              <p className="font-medium">{customer.staff_name || "-"}</p>
+            )}
+          </div>
+
+          {/* Row 4: 郵便番号・都道府県 */}
+          <div>
+            <p className="text-sm text-gray-500 mb-2">郵便番号</p>
+            {isEditing ? (
+              <div className="flex gap-2">
                 <input
-                  value={draft.billing_contact_name ?? ""}
-                  onChange={(e) =>
-                    setDraft({ ...draft, billing_contact_name: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  type="text"
+                  value={postalCode}
+                  onChange={(e) => setPostalCode(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
+                  placeholder="150-0041"
                 />
-              ) : (
-                <p className="font-medium">{customer.billing_contact_name || "-"}</p>
-              )}
-            </div>
-            <div>
-              <p className="text-sm text-gray-500 mb-1">請求先メールアドレス</p>
-              {isEditing ? (
-                <input
-                  value={draft.billing_contact_email ?? ""}
-                  onChange={(e) =>
-                    setDraft({ ...draft, billing_contact_email: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                />
-              ) : (
-                <p className="font-medium">{customer.billing_contact_email || "-"}</p>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-500 mb-1">締め条件</p>
-                {isEditing ? (
-                  <input
-                    value={draft.billing_closing_day ?? ""}
-                    onChange={(e) =>
-                      setDraft({ ...draft, billing_closing_day: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                  />
-                ) : (
-                  <p className="font-medium">{customer.billing_closing_day || "-"}</p>
-                )}
+                <Button
+                  type="button"
+                  onClick={handleFetchAddress}
+                  disabled={isLoadingAddress}
+                  variant="outline"
+                  size="sm"
+                >
+                  {isLoadingAddress ? (
+                    <Loader className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "取得"
+                  )}
+                </Button>
               </div>
-              <div>
-                <p className="text-sm text-gray-500 mb-1">支払サイト</p>
-                {isEditing ? (
-                  <input
-                    value={draft.billing_payment_site ?? ""}
-                    onChange={(e) =>
-                      setDraft({ ...draft, billing_payment_site: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                  />
-                ) : (
-                  <p className="font-medium">{customer.billing_payment_site || "-"}</p>
-                )}
-              </div>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500 mb-1">支払方法</p>
-              {isEditing ? (
-                <input
-                  value={draft.billing_payment_method ?? ""}
-                  onChange={(e) =>
-                    setDraft({ ...draft, billing_payment_method: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                />
-              ) : (
-                <p className="font-medium">{customer.billing_payment_method || "-"}</p>
-              )}
-            </div>
+            ) : (
+              <p className="font-medium">{customer.postal_code || "-"}</p>
+            )}
+            {addressError && isEditing && <p className="text-sm text-red-500 mt-1">{addressError}</p>}
+          </div>
+
+          <div>
+            <p className="text-sm text-gray-500 mb-2">都道府県</p>
+            {isEditing ? (
+              <select
+                value={prefecture}
+                onChange={(e) => {
+                  setPrefecture(e.target.value);
+                  setDraft({ ...draft, address: e.target.value + address });
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
+              >
+                <option value="">選択してください</option>
+                <option value="北海道">北海道</option>
+                <option value="青森県">青森県</option>
+                <option value="岩手県">岩手県</option>
+                <option value="宮城県">宮城県</option>
+                <option value="秋田県">秋田県</option>
+                <option value="山形県">山形県</option>
+                <option value="福島県">福島県</option>
+                <option value="茨城県">茨城県</option>
+                <option value="栃木県">栃木県</option>
+                <option value="群馬県">群馬県</option>
+                <option value="埼玉県">埼玉県</option>
+                <option value="千葉県">千葉県</option>
+                <option value="東京都">東京都</option>
+                <option value="神奈川県">神奈川県</option>
+                <option value="新潟県">新潟県</option>
+                <option value="富山県">富山県</option>
+                <option value="石川県">石川県</option>
+                <option value="福井県">福井県</option>
+                <option value="山梨県">山梨県</option>
+                <option value="長野県">長野県</option>
+                <option value="岐阜県">岐阜県</option>
+                <option value="静岡県">静岡県</option>
+                <option value="愛知県">愛知県</option>
+                <option value="三重県">三重県</option>
+                <option value="滋賀県">滋賀県</option>
+                <option value="京都府">京都府</option>
+                <option value="大阪府">大阪府</option>
+                <option value="兵庫県">兵庫県</option>
+                <option value="奈良県">奈良県</option>
+                <option value="和歌山県">和歌山県</option>
+                <option value="鳥取県">鳥取県</option>
+                <option value="島根県">島根県</option>
+                <option value="岡山県">岡山県</option>
+                <option value="広島県">広島県</option>
+                <option value="山口県">山口県</option>
+                <option value="徳島県">徳島県</option>
+                <option value="香川県">香川県</option>
+                <option value="愛媛県">愛媛県</option>
+                <option value="高知県">高知県</option>
+                <option value="福岡県">福岡県</option>
+                <option value="佐賀県">佐賀県</option>
+                <option value="長崎県">長崎県</option>
+                <option value="熊本県">熊本県</option>
+                <option value="大分県">大分県</option>
+                <option value="宮崎県">宮崎県</option>
+                <option value="鹿児島県">鹿児島県</option>
+                <option value="沖縄県">沖縄県</option>
+              </select>
+            ) : (
+              <p className="font-medium">
+                {customer.address?.split(/([^ ])/)[0] || "-"}
+              </p>
+            )}
+          </div>
+
+          {/* Row 5: 住所 */}
+          <div className="md:col-span-2">
+            <p className="text-sm text-gray-500 mb-2">住所</p>
+            {isEditing ? (
+              <textarea
+                value={address}
+                onChange={(e) => {
+                  setAddress(e.target.value);
+                  setDraft({ ...draft, address: prefecture + e.target.value });
+                }}
+                rows={2}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
+                placeholder="市区町村以降"
+              />
+            ) : (
+              <p className="font-medium">{customer.address}</p>
+            )}
+          </div>
+
+          {/* Row 6: 備考 */}
+          <div className="md:col-span-2">
+            <p className="text-sm text-gray-500 mb-2">備考</p>
+            {isEditing ? (
+              <textarea
+                value={draft.memo ?? ""}
+                onChange={(e) => setDraft({ ...draft, memo: e.target.value })}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
+                placeholder="追加の説明や注意事項"
+              />
+            ) : (
+              <p className="font-medium whitespace-pre-wrap">{customer.memo || "-"}</p>
+            )}
+          </div>
+
+          {/* 監査ログ */}
+          <div className="md:col-span-2 pt-3 border-t text-xs text-gray-600">
+            <div>登録: {customer.created_at ? formatDate(customer.created_at) : "-"} ({customer.created_by || "-"}) | 更新: {customer.updated_at ? formatDate(customer.updated_at) : "-"} ({customer.updated_by || "-"})</div>
           </div>
         </div>
       </CardContent>

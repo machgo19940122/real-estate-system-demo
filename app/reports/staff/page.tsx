@@ -20,7 +20,7 @@ import {
   getPaymentsByInvoiceId,
   getInvoiceStaffId,
 } from "@/src/data/mock";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, getPaymentStatusChipClassName } from "@/lib/utils";
 import { formatProfitMarginRate, invoiceProfitMarginRateForDisplay } from "@/lib/invoice-cost-metrics";
 import Link from "next/link";
 import { Calculator } from "lucide-react";
@@ -563,7 +563,7 @@ export default function StaffReportsPage() {
                         </TableCell>
                         <TableCell className="text-xs md:text-sm">
                           <span
-                            className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-yellow-100 text-yellow-800"
+                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${getPaymentStatusChipClassName(status)}`}
                           >
                             {status}
                           </span>

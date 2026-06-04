@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { Suspense, useEffect, useState, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -45,8 +46,14 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { FileDown, Search, X, Plus } from "lucide-react";
 import Link from "next/link";
 
-export default function EstimatesPage() {
+function EstimatesPageContent() {
+  const searchParams = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    const customer = searchParams.get("customer");
+    if (customer) setSearchQuery(customer);
+  }, [searchParams]);
   const [categoryFilter, setCategoryFilter] = useState<RevenueCategory | "">("");
   const [periodMode, setPeriodMode] = useState<PeriodMode>("all");
   const [periodYear, setPeriodYear] = useState<number>(() =>
@@ -457,6 +464,22 @@ export default function EstimatesPage() {
         </Card>
       </div>
     </AppLayout>
+  );
+}
+
+export default function EstimatesPage() {
+  return (
+    <Suspense
+      fallback={
+        <AppLayout>
+          <div className="flex items-center justify-center min-h-[40vh] text-gray-500">
+            読み込み中...
+          </div>
+        </AppLayout>
+      }
+    >
+      <EstimatesPageContent />
+    </Suspense>
   );
 }
 

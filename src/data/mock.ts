@@ -1,3 +1,13 @@
+export type CustomerCategory = "問い合わせ" | "OB" | "注文" | "建売" | "その他";
+
+export const CUSTOMER_CATEGORIES: CustomerCategory[] = [
+  "問い合わせ",
+  "OB",
+  "注文",
+  "建売",
+  "その他",
+];
+
 export interface Customer {
   id: number;
   name: string;
@@ -5,7 +15,17 @@ export interface Customer {
   email: string;
   /** 郵便番号（例: 150-0041）。封筒ラベル等で使用 */
   postal_code?: string;
+  /** 電話番号２ */
+  phone2?: string;
+  /** 宛先（様/御中など） */
+  honorific?: string;
   address: string;
+  /** 担当者 */
+  staff_name?: string;
+  /** 顧客カテゴリ */
+  category?: CustomerCategory;
+  /** 備考 */
+  memo?: string;
   // 請求関連設定（ダミー）
   billing_contact_name?: string; // 請求先担当者
   billing_contact_email?: string; // 請求先メール
@@ -13,6 +33,23 @@ export interface Customer {
   billing_payment_site?: string; // 支払サイト（翌月末払い など）
   billing_payment_method?: string; // 支払方法（振込 / 口座振替 など）
   created_at?: string;
+  created_by?: string; // 登録者
+  updated_at?: string; // 更新日
+  updated_by?: string; // 更新者
+}
+
+// 交渉履歴の添付ファイル
+export interface NegotiationAttachment {
+  id: number;
+  file_name: string;
+  mime_type: string;
+  size_bytes: number;
+  uploaded_at: string; // YYYY-MM-DD
+  tag?: string;
+  /** テキストプレビュー用 */
+  preview_text?: string;
+  /** 画像・PDFプレビュー用（デモ: data URL） */
+  data_url?: string;
 }
 
 // 交渉履歴（顧客に複数紐づく想定）
@@ -22,6 +59,7 @@ export interface NegotiationHistory {
   date: string; // YYYY-MM-DD
   memo: string;
   entered_by: string;
+  attachments?: NegotiationAttachment[];
 }
 
 export type PropertyCategory = "注文" | "建売" | "土地";
@@ -187,69 +225,109 @@ export const customers: Customer[] = [
     name: "田中太郎",
     phone: "090-1234-5678",
     email: "taro@test.com",
+    phone2: "03-1234-5678",
+    honorific: "様",
     postal_code: "150-0041",
     address: "東京都渋谷区神南1-1-1",
+    staff_name: "田中太郎",
+    memo: "重要顧客。毎月定例会あり。",
     billing_contact_name: "田中 経理担当",
     billing_contact_email: "billing-tanaka@test.com",
     billing_closing_day: "毎月末締め",
     billing_payment_site: "翌月末払い",
     billing_payment_method: "銀行振込",
     created_at: "2025-01-15",
+    created_by: "佐藤花子",
+    updated_at: "2026-05-20",
+    updated_by: "山田次郎",
   },
   {
     id: 2,
     name: "株式会社サンプル",
     phone: "03-1234-5678",
     email: "info@sample.co.jp",
+    phone2: "03-9876-5432",
+    honorific: "御中",
     postal_code: "154-0004",
     address: "東京都世田谷区三軒茶屋2-2-2",
+    staff_name: "営業部 田中",
+    memo: "大規模プロジェクト担当。詳細は別紙参照。",
     billing_contact_name: "総務部 経理ご担当者様",
     billing_contact_email: "keiri@sample.co.jp",
     billing_closing_day: "20日締め",
     billing_payment_site: "翌々月10日払い",
     billing_payment_method: "銀行振込",
     created_at: "2025-02-01",
+    created_by: "山田次郎",
+    updated_at: "2026-03-15",
+    updated_by: "田中次郎",
   },
   {
     id: 3,
     name: "佐藤花子",
     phone: "080-9876-5432",
     email: "hanako@example.com",
+    phone2: "090-5555-6666",
+    honorific: "様",
     postal_code: "160-0023",
     address: "東京都新宿区西新宿3-3-3",
+    staff_name: "佐藤花子",
     created_at: "2025-02-10",
+    created_by: "鈴木一郎",
+    updated_at: "2026-04-01",
+    updated_by: "高橋美咲",
   },
   {
     id: 4,
     name: "鈴木一郎",
     phone: "090-1111-2222",
     email: "ichiro@test.com",
+    phone2: "03-2222-3333",
+    honorific: "様",
     postal_code: "106-0032",
     address: "東京都港区六本木4-4-4",
+    staff_name: "鈴木一郎",
+    memo: "納期厳守。品質重視。",
     billing_contact_name: "鈴木",
     billing_payment_method: "振込",
     created_at: "2025-02-20",
+    created_by: "高橋美咲",
+    updated_at: "2026-05-10",
+    updated_by: "佐藤花子",
   },
   {
     id: 5,
     name: "高橋美咲",
     phone: "070-3333-4444",
     email: "misaki@example.com",
+    phone2: "090-7777-8888",
+    honorific: "様",
     postal_code: "153-0063",
     address: "東京都目黒区目黒5-5-5",
+    staff_name: "高橋美咲",
     created_at: "2025-03-01",
+    created_by: "田中次郎",
+    updated_at: "2026-02-28",
+    updated_by: "山田次郎",
   },
   {
     id: 6,
     name: "株式会社建設丸",
     phone: "03-5555-6666",
     email: "info@kensetsumaru.co.jp",
+    phone2: "03-5555-7777",
+    honorific: "御中",
     postal_code: "141-0032",
     address: "東京都品川区大崎6-6-6",
+    staff_name: "営業窓口",
+    memo: "長期取引先。品質第一。",
     billing_contact_name: "経理部",
     billing_closing_day: "25日締め",
     billing_payment_site: "翌月25日払い",
     created_at: "2025-03-10",
+    created_by: "鈴木一郎",
+    updated_at: "2026-04-20",
+    updated_by: "高橋美咲",
   },
 ];
 
@@ -282,6 +360,24 @@ export const negotiationHistories: NegotiationHistory[] = [
     date: "2026-03-10",
     memo: "購入希望条件の整理。エリアは新宿近辺、予算上限9,500万。",
     entered_by: "鈴木一郎",
+    attachments: [
+      {
+        id: 1,
+        file_name: "添付サンプル画像 1.svg",
+        mime_type: "image/svg+xml",
+        size_bytes: 747,
+        uploaded_at: "2026-03-04",
+        tag: "ノルビー一号",
+      },
+      {
+        id: 2,
+        file_name: "添付サンプル画像 2.svg",
+        mime_type: "image/svg+xml",
+        size_bytes: 752,
+        uploaded_at: "2026-03-04",
+        tag: "ノルビー一号",
+      },
+    ],
   },
   {
     id: 5,

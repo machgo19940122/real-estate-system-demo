@@ -11,22 +11,22 @@ import {
 import {
   invoices,
   payments,
+  estimates,
   getCustomerById,
   getProjectById,
   calculateInvoiceStatus,
 } from "@/src/data/mock";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, getPaymentStatusChipClassName } from "@/lib/utils";
 import { TrendingUp, CircleDollarSign, Clock, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 export default function DashboardPage() {
-  // 今月の売上計算（入金済み＝入金額が請求金額以上のもののみ）
+  // 今月売上：請求日が今月のものすべてを計上
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
   const monthlyRevenue = invoices
     .filter(
       (inv) =>
-        calculateInvoiceStatus(inv) === "入金済み" &&
         new Date(inv.created_at).getMonth() + 1 === currentMonth &&
         new Date(inv.created_at).getFullYear() === currentYear
     )
@@ -47,6 +47,14 @@ export default function DashboardPage() {
 
   // 最近の請求（最新5件）
   const recentInvoices = [...invoices]
+    .sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    )
+    .slice(0, 5);
+
+  // 最近の見積（最新5件）
+  const recentEstimates = [...estimates]
     .sort(
       (a, b) =>
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -76,7 +84,7 @@ export default function DashboardPage() {
               <div className="text-3xl font-bold text-gray-900">
                 {formatCurrency(monthlyRevenue)}
               </div>
-              <p className="text-xs text-gray-500 mt-2">入金済みの請求のみ</p>
+              <p className="text-xs text-gray-500 mt-2">請求日が今月の請求書合計</p>
             </CardContent>
           </Card>
 
@@ -111,78 +119,152 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* 最近の請求 */}
-        <Card className="border-0 shadow-lg">
-          <CardHeader className="border-b">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xl font-semibold">最近の請求</CardTitle>
-              <Link
-                href="/invoices"
-                className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
-              >
-                一覧を見る
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-gray-50/50">
-                  <TableHead className="font-semibold">請求番号</TableHead>
-                  <TableHead className="font-semibold">顧客</TableHead>
-                  <TableHead className="font-semibold text-right">金額</TableHead>
-                  <TableHead className="font-semibold">支払期限</TableHead>
-                  <TableHead className="font-semibold">入金状況</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentInvoices.map((inv) => {
-                  const project = getProjectById((inv as any).project_id);
-                  const customer = project
-                    ? getCustomerById(project.customer_id)
-                    : undefined;
-                  return (
-                    <TableRow
-                      key={inv.id}
-                      className="hover:bg-gray-50/50 transition-colors"
-                    >
-                      <TableCell className="font-medium">
-                        <Link
-                          href={`/invoices/${inv.id}`}
-                          className="text-blue-600 hover:text-blue-700 hover:underline"
-                        >
-                          {inv.invoice_number}
-                        </Link>
-                      </TableCell>
-                      <TableCell>
-                        {customer ? (
+        {/* 最近の請求と見積 */}
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* 最近の請求 */}
+          <Card className="border-0 shadow-lg">
+            <CardHeader className="border-b">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xl font-semibold">最近の請求</CardTitle>
+                <Link
+                  href="/invoices"
+                  className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                >
+                  一覧を見る
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-gray-50/50">
+                    <TableHead className="font-semibold">請求番号</TableHead>
+                    <TableHead className="font-semibold">顧客</TableHead>
+                    <TableHead className="font-semibold text-right">金額</TableHead>
+                    <TableHead className="font-semibold">支払期限</TableHead>
+                    <TableHead className="font-semibold">入金状況</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {recentInvoices.map((inv) => {
+                    const project = getProjectById((inv as any).project_id);
+                    const customer = project
+                      ? getCustomerById(project.customer_id)
+                      : undefined;
+                    return (
+                      <TableRow
+                        key={inv.id}
+                        className="hover:bg-gray-50/50 transition-colors"
+                      >
+                        <TableCell className="font-medium">
                           <Link
-                            href={`/customers/${customer.id}`}
-                            className="text-gray-700 hover:text-blue-600 hover:underline"
+                            href={`/invoices/${inv.id}`}
+                            className="text-blue-600 hover:text-blue-700 hover:underline"
                           >
-                            {customer.name}
+                            {inv.invoice_number}
                           </Link>
-                        ) : (
-                          "-"
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right font-semibold">
-                        {formatCurrency(inv.amount)}
-                      </TableCell>
-                      <TableCell>{formatDate(inv.due_date)}</TableCell>
-                      <TableCell>
-                        <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800">
-                          {calculateInvoiceStatus(inv)}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                        </TableCell>
+                        <TableCell>
+                          {customer ? (
+                            <Link
+                              href={`/customers/${customer.id}`}
+                              className="text-gray-700 hover:text-blue-600 hover:underline"
+                            >
+                              {customer.name}
+                            </Link>
+                          ) : (
+                            "-"
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right font-semibold">
+                          {formatCurrency(inv.amount)}
+                        </TableCell>
+                        <TableCell>{formatDate(inv.due_date)}</TableCell>
+                        <TableCell>
+                          <span
+                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getPaymentStatusChipClassName(calculateInvoiceStatus(inv))}`}
+                          >
+                            {calculateInvoiceStatus(inv)}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          {/* 最近の見積 */}
+          <Card className="border-0 shadow-lg">
+            <CardHeader className="border-b">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xl font-semibold">最近の見積</CardTitle>
+                <Link
+                  href="/estimates"
+                  className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                >
+                  一覧を見る
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-gray-50/50">
+                    <TableHead className="font-semibold">見積番号</TableHead>
+                    <TableHead className="font-semibold">顧客</TableHead>
+                    <TableHead className="font-semibold text-right">金額</TableHead>
+                    <TableHead className="font-semibold">区分</TableHead>
+                    <TableHead className="font-semibold">作成日</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {recentEstimates.map((est) => {
+                    const project = getProjectById((est as any).project_id);
+                    const customer = project
+                      ? getCustomerById(project.customer_id)
+                      : undefined;
+                    return (
+                      <TableRow
+                        key={est.id}
+                        className="hover:bg-gray-50/50 transition-colors"
+                      >
+                        <TableCell className="font-medium">
+                          <Link
+                            href={`/estimates/${est.id}`}
+                            className="text-blue-600 hover:text-blue-700 hover:underline"
+                          >
+                            {est.estimate_number}
+                          </Link>
+                        </TableCell>
+                        <TableCell>
+                          {customer ? (
+                            <Link
+                              href={`/customers/${customer.id}`}
+                              className="text-gray-700 hover:text-blue-600 hover:underline"
+                            >
+                              {customer.name}
+                            </Link>
+                          ) : (
+                            "-"
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right font-semibold">
+                          {formatCurrency(est.total)}
+                        </TableCell>
+                        <TableCell>{est.revenue_category || "-"}</TableCell>
+                        <TableCell>{formatDate(est.created_at)}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </AppLayout>
   );

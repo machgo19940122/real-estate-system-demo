@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { Suspense, useEffect, useState, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -43,13 +44,19 @@ const REVENUE_CATEGORY_OPTIONS: { value: RevenueCategory | ""; label: string }[]
   { value: "土地", label: "土地" },
   { value: "仲介料", label: "仲介料" },
 ];
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, getPaymentStatusChipClassName } from "@/lib/utils";
 import { FileDown, Search, X, Plus } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
-export default function InvoicesPage() {
+function InvoicesPageContent() {
+  const searchParams = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    const customer = searchParams.get("customer");
+    if (customer) setSearchQuery(customer);
+  }, [searchParams]);
   const [categoryFilter, setCategoryFilter] = useState<RevenueCategory | "">("");
   const [statusFilter, setStatusFilter] = useState<"" | "有" | "無し">("");
   const [periodMode, setPeriodMode] = useState<PeriodMode>("all");
@@ -482,7 +489,7 @@ export default function InvoicesPage() {
                       </TableCell>
                       <TableCell>
                         <span
-                          className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-800"
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getPaymentStatusChipClassName(paymentStatus)}`}
                         >
                           {paymentStatus}
                         </span>
@@ -516,6 +523,22 @@ export default function InvoicesPage() {
         </Card>
       </div>
     </AppLayout>
+  );
+}
+
+export default function InvoicesPage() {
+  return (
+    <Suspense
+      fallback={
+        <AppLayout>
+          <div className="flex items-center justify-center min-h-[40vh] text-gray-500">
+            読み込み中...
+          </div>
+        </AppLayout>
+      }
+    >
+      <InvoicesPageContent />
+    </Suspense>
   );
 }
 

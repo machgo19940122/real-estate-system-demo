@@ -125,20 +125,24 @@ function EstimatesPageContent() {
     if (categoryFilter) {
       list = list.filter((e) => (e as any).revenue_category === categoryFilter);
     }
-    if (!searchQuery.trim()) return list;
-    const query = searchQuery.toLowerCase();
-    return list.filter((estimate) => {
-      const project = projects.find((p) => p.id === (estimate as any).project_id);
-      const customer = project ? getCustomerById(project.customer_id) : undefined;
-      const property = project ? getPropertyById(project.property_id) : undefined;
-      const staff = estimate.staff_id ? getStaffById(estimate.staff_id) : undefined;
-      return (
-        estimate.estimate_number.toLowerCase().includes(query) ||
-        customer?.name.toLowerCase().includes(query) ||
-        property?.name.toLowerCase().includes(query) ||
-        staff?.name.toLowerCase().includes(query)
-      );
-    });
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      list = list.filter((estimate) => {
+        const project = projects.find((p) => p.id === (estimate as any).project_id);
+        const customer = project ? getCustomerById(project.customer_id) : undefined;
+        const property = project ? getPropertyById(project.property_id) : undefined;
+        const staff = estimate.staff_id ? getStaffById(estimate.staff_id) : undefined;
+        return (
+          estimate.estimate_number.toLowerCase().includes(query) ||
+          customer?.name.toLowerCase().includes(query) ||
+          property?.name.toLowerCase().includes(query) ||
+          staff?.name.toLowerCase().includes(query)
+        );
+      });
+    }
+    return list.slice().sort((a, b) =>
+      b.estimate_number.localeCompare(a.estimate_number, undefined, { numeric: true })
+    );
   }, [searchQuery, categoryFilter, periodRange]);
 
   return (

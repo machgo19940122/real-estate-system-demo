@@ -5,7 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Building2, Pencil, Save, X, Loader, Printer } from "lucide-react";
 import { formatDate } from "@/lib/utils";
-import { CUSTOMER_CATEGORIES, type Customer, type CustomerCategory } from "@/src/data/mock";
+import {
+  CUSTOMER_CATEGORIES,
+  staff,
+  getStaffById,
+  type Customer,
+  type CustomerCategory,
+} from "@/src/data/mock";
 import { CustomerEnvelopeLabelModal } from "@/components/customer-envelope-label-modal";
 
 export function CustomerDetailClient({ initialCustomer }: { initialCustomer: Customer }) {
@@ -87,7 +93,7 @@ export function CustomerDetailClient({ initialCustomer }: { initialCustomer: Cus
       category: draft.category || undefined,
       address: draft.address.trim(),
       postal_code: draft.postal_code?.trim() || undefined,
-      staff_name: draft.staff_name?.trim() || undefined,
+      staff_id: draft.staff_id,
       memo: draft.memo?.trim() || undefined,
     };
     setCustomer(updated);
@@ -241,14 +247,29 @@ export function CustomerDetailClient({ initialCustomer }: { initialCustomer: Cus
           <div>
             <p className="text-sm text-gray-500 mb-2">担当者</p>
             {isEditing ? (
-              <input
-                type="text"
-                value={draft.staff_name ?? ""}
-                onChange={(e) => setDraft({ ...draft, staff_name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
-              />
+              <select
+                value={draft.staff_id ?? ""}
+                onChange={(e) =>
+                  setDraft({
+                    ...draft,
+                    staff_id: e.target.value ? Number(e.target.value) : undefined,
+                  })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm bg-white"
+              >
+                <option value="">選択してください</option>
+                {staff.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.name}
+                  </option>
+                ))}
+              </select>
             ) : (
-              <p className="font-medium">{customer.staff_name || "-"}</p>
+              <p className="font-medium">
+                {customer.staff_id != null
+                  ? getStaffById(customer.staff_id)?.name ?? "-"
+                  : "-"}
+              </p>
             )}
           </div>
 

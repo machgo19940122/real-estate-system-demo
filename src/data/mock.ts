@@ -20,8 +20,8 @@ export interface Customer {
   /** 宛先（様/御中など） */
   honorific?: string;
   address: string;
-  /** 担当者 */
-  staff_name?: string;
+  /** 担当者ID（担当者マスタ参照） */
+  staff_id?: number;
   /** 顧客カテゴリ */
   category?: CustomerCategory;
   /** 備考 */
@@ -88,7 +88,7 @@ export interface Property {
   /** 所有者（顧客ID） */
   owner_customer_id?: number;
   category?: PropertyCategory;
-  /** 販売金額（円） */
+  /** 販売金額（税込・円） */
   sale_price?: number;
   memo?: string;
   attachments?: PropertyAttachment[];
@@ -285,7 +285,8 @@ export const customers: Customer[] = [
     honorific: "様",
     postal_code: "150-0041",
     address: "東京都渋谷区神南1-1-1",
-    staff_name: "田中太郎",
+    staff_id: 2,
+    category: "注文",
     memo: "重要顧客。毎月定例会あり。",
     billing_contact_name: "田中 経理担当",
     billing_contact_email: "billing-tanaka@test.com",
@@ -306,7 +307,8 @@ export const customers: Customer[] = [
     honorific: "御中",
     postal_code: "154-0004",
     address: "東京都世田谷区三軒茶屋2-2-2",
-    staff_name: "営業部 田中",
+    staff_id: 4,
+    category: "建売",
     memo: "大規模プロジェクト担当。詳細は別紙参照。",
     billing_contact_name: "総務部 経理ご担当者様",
     billing_contact_email: "keiri@sample.co.jp",
@@ -327,7 +329,8 @@ export const customers: Customer[] = [
     honorific: "様",
     postal_code: "160-0023",
     address: "東京都新宿区西新宿3-3-3",
-    staff_name: "佐藤花子",
+    staff_id: 2,
+    category: "問い合わせ",
     created_at: "2025-02-10",
     created_by: "鈴木一郎",
     updated_at: "2026-04-01",
@@ -342,7 +345,8 @@ export const customers: Customer[] = [
     honorific: "様",
     postal_code: "106-0032",
     address: "東京都港区六本木4-4-4",
-    staff_name: "鈴木一郎",
+    staff_id: 3,
+    category: "OB",
     memo: "納期厳守。品質重視。",
     billing_contact_name: "鈴木",
     billing_payment_method: "振込",
@@ -360,7 +364,8 @@ export const customers: Customer[] = [
     honorific: "様",
     postal_code: "153-0063",
     address: "東京都目黒区目黒5-5-5",
-    staff_name: "高橋美咲",
+    staff_id: 1,
+    category: "その他",
     created_at: "2025-03-01",
     created_by: "田中次郎",
     updated_at: "2026-02-28",
@@ -375,7 +380,8 @@ export const customers: Customer[] = [
     honorific: "御中",
     postal_code: "141-0032",
     address: "東京都品川区大崎6-6-6",
-    staff_name: "営業窓口",
+    staff_id: 2,
+    category: "建売",
     memo: "長期取引先。品質第一。",
     billing_contact_name: "経理部",
     billing_closing_day: "25日締め",

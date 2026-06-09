@@ -45,6 +45,10 @@ export default function DashboardPage() {
     (inv) => calculateInvoiceStatus(inv) !== "入金済み"
   ).length;
 
+  const invoicesThisMonthHref = `/invoices?period=month&year=${currentYear}&month=${currentMonth}`;
+  const paymentsThisMonthHref = `/payments?year=${currentYear}&month=${currentMonth}`;
+  const outstandingInvoicesHref = `/invoices?paymentStatus=outstanding`;
+
   // 最近の請求（最新5件）
   const recentInvoices = [...invoices]
     .sort(
@@ -73,50 +77,56 @@ export default function DashboardPage() {
 
         {/* 統計カード */}
         <div className="grid gap-6 md:grid-cols-3">
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-gradient-to-br from-blue-50 to-white">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-700">今月売上</CardTitle>
-              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
-                <TrendingUp className="h-5 w-5 text-white" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-gray-900">
-                {formatCurrency(monthlyRevenue)}
-              </div>
-              <p className="text-xs text-gray-500 mt-2">請求日が今月の請求書合計</p>
-            </CardContent>
-          </Card>
+          <Link href={invoicesThisMonthHref} className="block group">
+            <Card className="border-0 shadow-lg group-hover:shadow-xl transition-shadow duration-300 bg-gradient-to-br from-blue-50 to-white cursor-pointer h-full">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-gray-700">今月売上</CardTitle>
+                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
+                  <TrendingUp className="h-5 w-5 text-white" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-gray-900">
+                  {formatCurrency(monthlyRevenue)}
+                </div>
+                <p className="text-xs text-gray-500 mt-2">請求日が今月の請求書合計</p>
+              </CardContent>
+            </Card>
+          </Link>
 
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-gradient-to-br from-orange-50 to-white">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-700">今月の入金金額</CardTitle>
-              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-md">
-                <CircleDollarSign className="h-5 w-5 text-white" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-gray-900">
-                {formatCurrency(monthlyPaidAmount)}
-              </div>
-              <p className="text-xs text-gray-500 mt-2">入金日が今月のもの</p>
-            </CardContent>
-          </Card>
+          <Link href={paymentsThisMonthHref} className="block group">
+            <Card className="border-0 shadow-lg group-hover:shadow-xl transition-shadow duration-300 bg-gradient-to-br from-orange-50 to-white cursor-pointer h-full">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-gray-700">今月の入金金額</CardTitle>
+                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-md">
+                  <CircleDollarSign className="h-5 w-5 text-white" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-gray-900">
+                  {formatCurrency(monthlyPaidAmount)}
+                </div>
+                <p className="text-xs text-gray-500 mt-2">入金日が今月のもの</p>
+              </CardContent>
+            </Card>
+          </Link>
 
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-gradient-to-br from-yellow-50 to-white">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-700">未入金件数</CardTitle>
-              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-yellow-500 to-yellow-600 flex items-center justify-center shadow-md">
-                <Clock className="h-5 w-5 text-white" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-gray-900">
-                {outstandingInvoicesCount}
-              </div>
-              <p className="text-xs text-gray-500 mt-2">入金待ち</p>
-            </CardContent>
-          </Card>
+          <Link href={outstandingInvoicesHref} className="block group">
+            <Card className="border-0 shadow-lg group-hover:shadow-xl transition-shadow duration-300 bg-gradient-to-br from-yellow-50 to-white cursor-pointer h-full">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-gray-700">未入金件数</CardTitle>
+                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-yellow-500 to-yellow-600 flex items-center justify-center shadow-md">
+                  <Clock className="h-5 w-5 text-white" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-gray-900">
+                  {outstandingInvoicesCount}
+                </div>
+                <p className="text-xs text-gray-500 mt-2">入金待ち（入金済み以外）</p>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
 
         {/* 最近の請求と見積 */}

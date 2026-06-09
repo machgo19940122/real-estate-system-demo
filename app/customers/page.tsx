@@ -12,7 +12,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { customers } from "@/src/data/mock";
+import {
+  customers,
+  CUSTOMER_CATEGORIES,
+  type CustomerCategory,
+} from "@/src/data/mock";
 import { formatDate } from "@/lib/utils";
 import { Plus, Printer, Search, X } from "lucide-react";
 import Link from "next/link";
@@ -20,21 +24,28 @@ import { CustomerEnvelopeLabelModal } from "@/components/customer-envelope-label
 
 export default function CustomersPage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<CustomerCategory | "all">(
+    "all"
+  );
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [labelModalOpen, setLabelModalOpen] = useState(false);
   const selectAllRef = useRef<HTMLInputElement>(null);
 
   const filteredCustomers = useMemo(() => {
-    if (!searchQuery.trim()) return customers;
+    let list = customers;
+    if (categoryFilter !== "all") {
+      list = list.filter((c) => c.category === categoryFilter);
+    }
+    if (!searchQuery.trim()) return list;
     const query = searchQuery.toLowerCase();
-    return customers.filter(
+    return list.filter(
       (customer) =>
         customer.name.toLowerCase().includes(query) ||
         customer.email.toLowerCase().includes(query) ||
         customer.phone.includes(query) ||
         customer.address.toLowerCase().includes(query)
     );
-  }, [searchQuery]);
+  }, [searchQuery, categoryFilter]);
 
   const filteredIds = useMemo(
     () => filteredCustomers.map((c) => c.id),
@@ -125,27 +136,50 @@ export default function CustomersPage() {
         {/* 検索バー */}
         <Card className="border-0 shadow-lg">
           <CardContent className="pt-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="顧客名、メール、電話、住所で検索..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all shadow-sm"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              )}
-            </div>
-            {(searchQuery || filteredCustomers.length > 0) && (
-              <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-gray-500">
+            <div className="flex flex-col md:flex-row md:items-center gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="顧客名、メール、電話、住所で検索..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all shadow-sm"
+                />
                 {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-2 md:w-56">
+                <span className="text-sm text-gray-700 whitespace-nowrap">カテゴリ:</span>
+                <select
+                  value={categoryFilter}
+                  onChange={(e) =>
+                    setCategoryFilter(
+                      e.target.value === "all"
+                        ? "all"
+                        : (e.target.value as CustomerCategory)
+                    )
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
+                >
+                  <option value="all">すべて</option>
+                  {CUSTOMER_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {(searchQuery || categoryFilter !== "all" || filteredCustomers.length > 0) && (
+              <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-gray-500">
+                {(searchQuery || categoryFilter !== "all") && (
                   <span>{filteredCustomers.length}件の結果が見つかりました</span>
                 )}
                 {filteredCustomers.length > 0 && !allFilteredSelected && (

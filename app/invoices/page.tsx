@@ -56,6 +56,21 @@ import { getInvoiceDate } from "@/lib/invoice-dates";
 import { getInvoicePropertySearchTexts } from "@/lib/invoice-properties";
 import { InvoicePropertiesList } from "@/components/invoice-properties-list";
 import { FileDown, Search, X, Plus } from "lucide-react";
+
+type InvoicePaymentStatusFilter =
+  | ""
+  | "outstanding"
+  | "unpaid"
+  | "partial"
+  | "paid";
+
+const INVOICE_PAYMENT_STATUS_LABELS: Record<InvoicePaymentStatusFilter, string> = {
+  "": "すべて",
+  outstanding: "未入金あり",
+  unpaid: "未入金のみ",
+  partial: "一部入金",
+  paid: "入金済み",
+};
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
@@ -63,15 +78,11 @@ function InvoicesPageContent() {
   const searchParams = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
 
-  useEffect(() => {
-    const customer = searchParams.get("customer");
-    const property = searchParams.get("property");
-    if (customer) setSearchQuery(customer);
-    else if (property) setSearchQuery(property);
-  }, [searchParams]);
   const [categoryFilter, setCategoryFilter] = useState<RevenueCategory | "">("");
   const [statusFilter, setStatusFilter] = useState<"" | "有" | "無し">("");
   const [closedFilter, setClosedFilter] = useState<"" | "open" | "closed">("");
+  const [paymentStatusFilter, setPaymentStatusFilter] =
+    useState<InvoicePaymentStatusFilter>("");
   const [periodMode, setPeriodMode] = useState<PeriodMode>("all");
   const [periodYear, setPeriodYear] = useState<number>(() =>
     fiscalStartYearContainingDate(new Date())
@@ -81,6 +92,33 @@ function InvoicesPageContent() {
   const [customFrom, setCustomFrom] = useState<string>("");
   const [customTo, setCustomTo] = useState<string>("");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const customer = searchParams.get("customer");
+    const property = searchParams.get("property");
+    if (customer) setSearchQuery(customer);
+    else if (property) setSearchQuery(property);
+
+    const period = searchParams.get("period");
+    if (period === "month") {
+      setPeriodMode("month");
+      const year = Number(searchParams.get("year"));
+      const month = Number(searchParams.get("month"));
+      if (Number.isFinite(year)) setPeriodYear(year);
+      if (Number.isFinite(month)) setPeriodMonth(month);
+    }
+
+    const paymentStatus = searchParams.get("paymentStatus");
+    if (
+      paymentStatus === "outstanding" ||
+      paymentStatus === "unpaid" ||
+      paymentStatus === "partial" ||
+      paymentStatus === "paid"
+    ) {
+      setPaymentStatusFilter(paymentStatus);
+    }
+
+  }, [searchParams]);
 
   const jumpToThisMonth = () => {
     const d = new Date();
@@ -147,37 +185,58 @@ function InvoicesPageContent() {
     } else if (closedFilter === "open") {
       list = list.filter((inv) => !isInvoiceClosed(inv));
     }
-    if (!searchQuery.trim()) return list;
-    const query = normalizeInvoiceSearchQuery(searchQuery);
-    return list.filter((invoice) => {
-      const project = projects.find((p) => p.id === (invoice as any).project_id);
-      const customer =
-        invoice.customer_id != null
-          ? getCustomerById(invoice.customer_id)
-          : project
-            ? getCustomerById(project.customer_id)
-            : undefined;
-      const invoiceStaffId = getInvoiceStaffId(invoice);
-      const staffMember =
-        invoiceStaffId != null ? getStaffById(invoiceStaffId) : undefined;
-      const paymentStatus = calculateInvoiceStatus(invoice);
-      const manualStatus = invoice.status;
-      const manualStatusLabel = manualStatus === "有" ? "黄色有" : "黄色無し";
-      const billingTexts = getInvoiceBillingSearchTexts(invoice, customer);
-      return (
-        matchesInvoiceSearchText(invoice.invoice_number, query) ||
-        billingTexts.some((t) => matchesInvoiceSearchText(t, query)) ||
-        getInvoicePropertySearchTexts(invoice).some((name) =>
-          matchesInvoiceSearchText(name, query)
-        ) ||
-        matchesInvoiceSearchText(staffMember?.name ?? "", query) ||
-        matchesInvoiceSearchText(paymentStatus, query) ||
-        matchesInvoiceSearchText(manualStatus, query) ||
-        matchesInvoiceSearchText(manualStatusLabel, query) ||
-        matchesInvoiceSearchText(isInvoiceClosed(invoice) ? "締め済" : "未締め", query)
-      );
-    });
-  }, [searchQuery, categoryFilter, statusFilter, closedFilter, periodRange]);
+    if (paymentStatusFilter) {
+      list = list.filter((inv) => {
+        const status = calculateInvoiceStatus(inv);
+        switch (paymentStatusFilter) {
+          case "outstanding":
+            return status !== "入金済み";
+          case "unpaid":
+            return status === "未入金";
+          case "partial":
+            return status === "一部入金";
+          case "paid":
+            return status === "入金済み";
+          default:
+            return true;
+        }
+      });
+    }
+    if (searchQuery.trim()) {
+      const query = normalizeInvoiceSearchQuery(searchQuery);
+      list = list.filter((invoice) => {
+        const project = projects.find((p) => p.id === (invoice as any).project_id);
+        const customer =
+          invoice.customer_id != null
+            ? getCustomerById(invoice.customer_id)
+            : project
+              ? getCustomerById(project.customer_id)
+              : undefined;
+        const invoiceStaffId = getInvoiceStaffId(invoice);
+        const staffMember =
+          invoiceStaffId != null ? getStaffById(invoiceStaffId) : undefined;
+        const paymentStatus = calculateInvoiceStatus(invoice);
+        const manualStatus = invoice.status;
+        const manualStatusLabel = manualStatus === "有" ? "黄色有" : "黄色無し";
+        const billingTexts = getInvoiceBillingSearchTexts(invoice, customer);
+        return (
+          matchesInvoiceSearchText(invoice.invoice_number, query) ||
+          billingTexts.some((t) => matchesInvoiceSearchText(t, query)) ||
+          getInvoicePropertySearchTexts(invoice).some((name) =>
+            matchesInvoiceSearchText(name, query)
+          ) ||
+          matchesInvoiceSearchText(staffMember?.name ?? "", query) ||
+          matchesInvoiceSearchText(paymentStatus, query) ||
+          matchesInvoiceSearchText(manualStatus, query) ||
+          matchesInvoiceSearchText(manualStatusLabel, query) ||
+          matchesInvoiceSearchText(isInvoiceClosed(invoice) ? "締め済" : "未締め", query)
+        );
+      });
+    }
+    return list.slice().sort((a, b) =>
+      b.invoice_number.localeCompare(a.invoice_number, undefined, { numeric: true })
+    );
+  }, [searchQuery, categoryFilter, statusFilter, closedFilter, paymentStatusFilter, periodRange]);
 
   const filteredIds = useMemo(
     () => filteredInvoices.map((inv) => inv.id),
@@ -300,6 +359,21 @@ function InvoicesPageContent() {
                   <option value="">締め：すべて</option>
                   <option value="open">未締め</option>
                   <option value="closed">締め済</option>
+                </select>
+                <select
+                  value={paymentStatusFilter}
+                  onChange={(e) =>
+                    setPaymentStatusFilter(
+                      (e.target.value || "") as InvoicePaymentStatusFilter
+                    )
+                  }
+                  className="py-3 px-4 min-w-[160px] border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all shadow-sm bg-white"
+                >
+                  <option value="">入金状況：すべて</option>
+                  <option value="outstanding">未入金あり</option>
+                  <option value="unpaid">未入金のみ</option>
+                  <option value="partial">一部入金</option>
+                  <option value="paid">入金済み</option>
                 </select>
               </div>
 
@@ -442,6 +516,11 @@ function InvoicesPageContent() {
                       ? `${formatYmdJa(periodRange.start)}〜${formatYmdJa(periodRange.end)}`
                       : "期間指定: 未入力"}
                 </Badge>
+                {paymentStatusFilter && (
+                  <Badge variant="secondary">
+                    入金状況: {INVOICE_PAYMENT_STATUS_LABELS[paymentStatusFilter]}
+                  </Badge>
+                )}
                 <Button type="button" variant="outline" size="sm" onClick={jumpToThisMonth}>
                   今月
                 </Button>

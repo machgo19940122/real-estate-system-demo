@@ -264,7 +264,7 @@ export function PropertyFormFields({
 
       <div className="space-y-4">
         <div>
-          <p className="text-sm text-gray-500 mb-2">販売金額</p>
+          <p className="text-sm text-gray-500 mb-2">販売金額（税込）</p>
           {readOnly ? (
             <p className="font-medium">{salePriceDisplay}</p>
           ) : (
@@ -275,9 +275,9 @@ export function PropertyFormFields({
                 value={values.sale_price}
                 onChange={(e) => onChange({ sale_price: e.target.value })}
                 className={INPUT}
-                placeholder="58000000"
+                placeholder="63800000"
               />
-              <p className="text-xs text-gray-500 mt-1">円（税抜想定・デモ）</p>
+              <p className="text-xs text-gray-500 mt-1">円（税込）</p>
             </div>
           )}
         </div>

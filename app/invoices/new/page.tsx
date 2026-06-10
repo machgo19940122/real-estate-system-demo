@@ -97,6 +97,10 @@ function NewInvoiceForm() {
     }
     if (estimate.items && estimate.items.length > 0) {
       setItems(buildLineItemsFromEstimateItems(estimate.items));
+    }
+    if (estimate.subject?.trim()) {
+      setSubject(estimate.subject.trim());
+    } else if (estimate.items && estimate.items.length > 0) {
       const firstLine = estimate.items.find((it) => it.name?.trim());
       if (firstLine?.name?.trim()) {
         setSubject(firstLine.name.trim());

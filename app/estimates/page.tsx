@@ -17,7 +17,6 @@ import {
   estimates,
   projects,
   getCustomerById,
-  getPropertyById,
   getStaffById,
   type RevenueCategory,
 } from "@/src/data/mock";
@@ -130,12 +129,11 @@ function EstimatesPageContent() {
       list = list.filter((estimate) => {
         const project = projects.find((p) => p.id === (estimate as any).project_id);
         const customer = project ? getCustomerById(project.customer_id) : undefined;
-        const property = project ? getPropertyById(project.property_id) : undefined;
         const staff = estimate.staff_id ? getStaffById(estimate.staff_id) : undefined;
         return (
           estimate.estimate_number.toLowerCase().includes(query) ||
           customer?.name.toLowerCase().includes(query) ||
-          property?.name.toLowerCase().includes(query) ||
+          (estimate.subject ?? "").toLowerCase().includes(query) ||
           staff?.name.toLowerCase().includes(query)
         );
       });
@@ -172,7 +170,7 @@ function EstimatesPageContent() {
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="見積番号、顧客名、物件名、担当者名で検索..."
+                    placeholder="見積番号、顧客名、件名、担当者名で検索..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all shadow-sm"
@@ -370,7 +368,7 @@ function EstimatesPageContent() {
                 <TableRow className="bg-gray-50/50">
                   <TableHead className="font-semibold">見積番号</TableHead>
                   <TableHead className="font-semibold">顧客</TableHead>
-                  <TableHead className="font-semibold">物件</TableHead>
+                  <TableHead className="font-semibold">件名</TableHead>
                   <TableHead className="font-semibold">担当者</TableHead>
                   <TableHead className="font-semibold">区分</TableHead>
                   <TableHead className="font-semibold">小計</TableHead>
@@ -385,7 +383,6 @@ function EstimatesPageContent() {
                   filteredEstimates.map((estimate) => {
                   const project = projects.find((p) => p.id === (estimate as any).project_id);
                   const customer = project ? getCustomerById(project.customer_id) : undefined;
-                  const property = project ? getPropertyById(project.property_id) : undefined;
                   const staff = estimate.staff_id ? getStaffById(estimate.staff_id) : undefined;
                   const lineCount = estimate.items?.length ?? 0;
                   const pdfPages =
@@ -432,17 +429,8 @@ function EstimatesPageContent() {
                           "-"
                         )}
                       </TableCell>
-                      <TableCell>
-                        {property ? (
-                          <Link
-                            href={`/properties/${property.id}`}
-                            className="text-gray-700 hover:text-blue-600 hover:underline"
-                          >
-                            {property.name}
-                          </Link>
-                        ) : (
-                          "-"
-                        )}
+                      <TableCell className="max-w-[200px] truncate" title={estimate.subject?.trim() || undefined}>
+                        {estimate.subject?.trim() ? estimate.subject : "—"}
                       </TableCell>
                       <TableCell>
                         {staff ? (

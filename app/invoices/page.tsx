@@ -53,8 +53,6 @@ import {
 } from "@/lib/customer-billing";
 import { isInvoiceClosed } from "@/lib/invoice-close";
 import { getInvoiceDate } from "@/lib/invoice-dates";
-import { getInvoicePropertySearchTexts } from "@/lib/invoice-properties";
-import { InvoicePropertiesList } from "@/components/invoice-properties-list";
 import { FileDown, Search, X, Plus } from "lucide-react";
 
 type InvoicePaymentStatusFilter =
@@ -222,9 +220,7 @@ function InvoicesPageContent() {
         return (
           matchesInvoiceSearchText(invoice.invoice_number, query) ||
           billingTexts.some((t) => matchesInvoiceSearchText(t, query)) ||
-          getInvoicePropertySearchTexts(invoice).some((name) =>
-            matchesInvoiceSearchText(name, query)
-          ) ||
+          matchesInvoiceSearchText(invoice.subject ?? "", query) ||
           matchesInvoiceSearchText(staffMember?.name ?? "", query) ||
           matchesInvoiceSearchText(paymentStatus, query) ||
           matchesInvoiceSearchText(manualStatus, query) ||
@@ -313,7 +309,7 @@ function InvoicesPageContent() {
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="請求番号、請求宛先名、物件名、担当者名、ステータス、入金状況で検索..."
+                    placeholder="請求番号、請求宛先名、件名、担当者名、ステータス、入金状況で検索..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all shadow-sm"
@@ -590,7 +586,7 @@ function InvoicesPageContent() {
                   </TableHead>
                   <TableHead className="font-semibold">請求番号</TableHead>
                   <TableHead className="font-semibold">請求宛先</TableHead>
-                  <TableHead className="font-semibold">物件</TableHead>
+                  <TableHead className="font-semibold">件名</TableHead>
                   <TableHead className="font-semibold">担当者</TableHead>
                   <TableHead className="font-semibold">区分</TableHead>
                   <TableHead className="font-semibold">金額</TableHead>
@@ -662,8 +658,11 @@ function InvoicesPageContent() {
                           getInvoiceBillingAddresseeDisplayName(invoice, undefined) || "-"
                         )}
                       </TableCell>
-                      <TableCell className="min-w-[120px] max-w-[200px]">
-                        <InvoicePropertiesList invoice={invoice} emptyText="-" />
+                      <TableCell
+                        className="min-w-[120px] max-w-[200px] truncate"
+                        title={invoice.subject?.trim() || undefined}
+                      >
+                        {invoice.subject?.trim() ? invoice.subject : "—"}
                       </TableCell>
                       <TableCell className="text-gray-700">
                         {staffMember ? (

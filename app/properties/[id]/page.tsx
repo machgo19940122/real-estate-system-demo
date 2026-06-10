@@ -133,85 +133,8 @@ export default async function PropertyDetailPage({
           initialAttachments={property.attachments}
         />
 
-        {/* 関連見積・請求 */}
+        {/* 関連請求・見積 */}
         <div className="grid gap-6 md:grid-cols-2">
-          {/* この物件の見積 */}
-          <Card className="border-0 shadow-lg">
-            <CardHeader className="border-b flex items-center justify-between gap-3">
-              <CardTitle>この物件の見積</CardTitle>
-              <Link href={estimatesListHref}>
-                <Button variant="outline" size="sm">
-                  見積一覧へ
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
-              </Link>
-            </CardHeader>
-            <CardContent className="pt-6">
-              {propertyEstimates.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-gray-50/60">
-                        <TableHead className="text-xs md:text-sm font-semibold">
-                          見積番号
-                        </TableHead>
-                        <TableHead className="text-xs md:text-sm font-semibold">
-                          顧客
-                        </TableHead>
-                        <TableHead className="text-xs md:text-sm font-semibold text-right">
-                          合計金額
-                        </TableHead>
-                        <TableHead className="text-xs md:text-sm font-semibold">
-                          作成日
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {propertyEstimates.map((estimate) => {
-                        const project = propertyProjects.find(
-                          (p) => p.id === (estimate as any).project_id
-                        );
-                        const customer = project
-                          ? getCustomerById(project.customer_id)
-                          : undefined;
-                        return (
-                          <TableRow key={estimate.id} className="hover:bg-gray-50/60">
-                            <TableCell className="text-xs md:text-sm font-medium">
-                              <Link
-                                href={`/estimates/${estimate.id}`}
-                                className="text-blue-600 hover:text-blue-700 hover:underline"
-                              >
-                                {estimate.estimate_number}
-                              </Link>
-                            </TableCell>
-                            <TableCell className="text-xs md:text-sm">
-                              {customer?.name || "-"}
-                            </TableCell>
-                            <TableCell className="text-xs md:text-sm text-right font-semibold">
-                              {formatCurrency(estimate.total)}
-                            </TableCell>
-                            <TableCell className="text-xs md:text-sm">
-                              {formatDate(estimate.created_at)}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              ) : (
-                <p className="text-gray-500 text-center py-4">
-                  この物件の見積はまだありません
-                </p>
-              )}
-              {propertyEstimatesAll.length > 3 && (
-                <p className="text-xs text-gray-500 mt-3 text-center">
-                  最新3件を表示しています（全{propertyEstimatesAll.length}件）
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
           {/* この物件の請求 */}
           <Card className="border-0 shadow-lg">
             <CardHeader className="border-b flex items-center justify-between gap-3">
@@ -304,6 +227,83 @@ export default async function PropertyDetailPage({
               {propertyInvoicesAll.length > 3 && (
                 <p className="text-xs text-gray-500 mt-3 text-center">
                   最新3件を表示しています（全{propertyInvoicesAll.length}件）
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* この物件の見積 */}
+          <Card className="border-0 shadow-lg">
+            <CardHeader className="border-b flex items-center justify-between gap-3">
+              <CardTitle>この物件の見積</CardTitle>
+              <Link href={estimatesListHref}>
+                <Button variant="outline" size="sm">
+                  見積一覧へ
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              </Link>
+            </CardHeader>
+            <CardContent className="pt-6">
+              {propertyEstimates.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gray-50/60">
+                        <TableHead className="text-xs md:text-sm font-semibold">
+                          見積番号
+                        </TableHead>
+                        <TableHead className="text-xs md:text-sm font-semibold">
+                          顧客
+                        </TableHead>
+                        <TableHead className="text-xs md:text-sm font-semibold text-right">
+                          合計金額
+                        </TableHead>
+                        <TableHead className="text-xs md:text-sm font-semibold">
+                          作成日
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {propertyEstimates.map((estimate) => {
+                        const project = propertyProjects.find(
+                          (p) => p.id === (estimate as any).project_id
+                        );
+                        const customer = project
+                          ? getCustomerById(project.customer_id)
+                          : undefined;
+                        return (
+                          <TableRow key={estimate.id} className="hover:bg-gray-50/60">
+                            <TableCell className="text-xs md:text-sm font-medium">
+                              <Link
+                                href={`/estimates/${estimate.id}`}
+                                className="text-blue-600 hover:text-blue-700 hover:underline"
+                              >
+                                {estimate.estimate_number}
+                              </Link>
+                            </TableCell>
+                            <TableCell className="text-xs md:text-sm">
+                              {customer?.name || "-"}
+                            </TableCell>
+                            <TableCell className="text-xs md:text-sm text-right font-semibold">
+                              {formatCurrency(estimate.total)}
+                            </TableCell>
+                            <TableCell className="text-xs md:text-sm">
+                              {formatDate(estimate.created_at)}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <p className="text-gray-500 text-center py-4">
+                  この物件の見積はまだありません
+                </p>
+              )}
+              {propertyEstimatesAll.length > 3 && (
+                <p className="text-xs text-gray-500 mt-3 text-center">
+                  最新3件を表示しています（全{propertyEstimatesAll.length}件）
                 </p>
               )}
             </CardContent>

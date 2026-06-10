@@ -15,6 +15,7 @@ export type EstimateNewFormDraft = {
   propertyId: string;
   revenueCategory: string;
   staffId: string;
+  subject: string;
   note: string;
   items: EstimateFormLineItem[];
 };
@@ -37,6 +38,7 @@ export function buildDraftFromEstimate(estimate: Estimate): EstimateNewFormDraft
     propertyId: project ? String(project.property_id) : "",
     revenueCategory: estimate.revenue_category ?? "",
     staffId: estimate.staff_id != null ? String(estimate.staff_id) : "",
+    subject: estimate.subject ?? "",
     note: estimate.note ?? "",
     items,
   };

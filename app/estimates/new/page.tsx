@@ -28,6 +28,7 @@ function NewEstimateForm() {
   const [propertyId, setPropertyId] = useState(presetPropertyId);
   const [revenueCategory, setRevenueCategory] = useState(presetRevenueCategory);
   const [staffId, setStaffId] = useState("");
+  const [subject, setSubject] = useState("");
   const [note, setNote] = useState("");
   const [items, setItems] = useState([createGeneralLineItem(1)]);
   const [quoteModalOpen, setQuoteModalOpen] = useState(false);
@@ -37,6 +38,7 @@ function NewEstimateForm() {
     setPropertyId(draft.propertyId);
     setRevenueCategory(draft.revenueCategory);
     setStaffId(draft.staffId);
+    setSubject(draft.subject);
     setNote(draft.note);
     setItems(draft.items);
   }, []);
@@ -56,7 +58,12 @@ function NewEstimateForm() {
       alert("顧客を選択してください");
       return;
     }
-    alert("新規見積登録機能（ダミー）\n備考: " + (note.trim() || "-"));
+    alert(
+      "新規見積登録機能（ダミー）\n件名: " +
+        (subject.trim() || "-") +
+        "\n備考: " +
+        (note.trim() || "-")
+    );
   };
 
   const footerTotals = useEditableFooterTotals(items);
@@ -156,6 +163,20 @@ function NewEstimateForm() {
               </div>
 
               <div className="space-y-4 pt-4 border-t">
+                <div className="space-y-2">
+                  <label htmlFor="estimate_subject" className="text-sm font-medium text-gray-700">
+                    件名
+                  </label>
+                  <input
+                    id="estimate_subject"
+                    type="text"
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    placeholder="見積書の件名を入力"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white"
+                  />
+                </div>
+
                 {/* 備考 */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">備考</label>

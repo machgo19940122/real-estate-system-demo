@@ -41,7 +41,8 @@ export function EstimateQuoteModal(props: {
     return sorted.filter((e) => {
       const num = e.estimate_number.toLowerCase();
       const cust = customerNameForEstimate(e).toLowerCase();
-      return num.includes(q) || cust.includes(q);
+      const subj = (e.subject ?? "").toLowerCase();
+      return num.includes(q) || cust.includes(q) || subj.includes(q);
     });
   }, [sorted, query]);
 
@@ -72,7 +73,7 @@ export function EstimateQuoteModal(props: {
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="見積番号・顧客名で絞り込み"
+            placeholder="見積番号・顧客名・件名で絞り込み"
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
@@ -90,6 +91,9 @@ export function EstimateQuoteModal(props: {
                   <p className="truncate text-sm text-gray-600">
                     {customerNameForEstimate(e)} · {formatCurrency(e.total)}
                   </p>
+                  {e.subject?.trim() ? (
+                    <p className="truncate text-xs text-gray-500">{e.subject}</p>
+                  ) : null}
                   <p className="text-xs text-gray-400">{formatDate(e.created_at)}</p>
                 </div>
                 <Button

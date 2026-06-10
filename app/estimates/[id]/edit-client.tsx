@@ -37,6 +37,7 @@ export function EstimateEditClient({
   const [draftCategory, setDraftCategory] = useState<RevenueCategory | "">(
     (initialEstimate.revenue_category as RevenueCategory | undefined) ?? ""
   );
+  const [draftSubject, setDraftSubject] = useState(initialEstimate.subject ?? "");
   const [draftNote, setDraftNote] = useState(initialEstimate.note ?? "");
   const [draftItems, setDraftItems] = useState<EstimateLineItemForm[]>(
     initialEstimate.items?.map(persistedLineToForm) ?? []
@@ -54,6 +55,7 @@ export function EstimateEditClient({
 
   const syncDraftFromEstimate = () => {
     setDraftCategory((estimate.revenue_category as RevenueCategory | undefined) ?? "");
+    setDraftSubject(estimate.subject ?? "");
     setDraftNote(estimate.note ?? "");
     setDraftItems(estimate.items?.map(persistedLineToForm) ?? []);
   };
@@ -72,6 +74,7 @@ export function EstimateEditClient({
     const next: Estimate = {
       ...estimate,
       revenue_category: (draftCategory || undefined) as RevenueCategory | undefined,
+      subject: draftSubject.trim() ? draftSubject.trim() : undefined,
       note: draftNote.trim() ? draftNote.trim() : undefined,
       items: draftItems.map(formToEstimateItem),
       subtotal,
@@ -161,6 +164,23 @@ export function EstimateEditClient({
               <p className="text-sm text-gray-500">作成日</p>
               <p className="font-medium">{formatDate(estimate.created_at)}</p>
             </div>
+          </div>
+
+          <div className="space-y-2 pb-4 border-b">
+            <p className="text-sm text-gray-500">件名</p>
+            {isEditing ? (
+              <input
+                type="text"
+                value={draftSubject}
+                onChange={(e) => setDraftSubject(e.target.value)}
+                placeholder="見積書の件名を入力"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
+              />
+            ) : (
+              <p className="text-sm text-gray-900">
+                {estimate.subject?.trim() ? estimate.subject : "-"}
+              </p>
+            )}
           </div>
 
           <div className="space-y-2 pb-4 border-b">

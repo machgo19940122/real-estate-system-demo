@@ -49,3 +49,17 @@ export function nextInvoiceNumber(
 ): string {
   return formatInvoiceNumber(period, nextInvoiceSequence(existing, period));
 }
+
+export function isInvoiceNumberTaken(
+  existing: Pick<Invoice, "id" | "invoice_number">[],
+  invoiceNumber: string,
+  excludeId?: number
+): boolean {
+  const normalized = invoiceNumber.trim();
+  if (!normalized) return false;
+  return existing.some(
+    (inv) =>
+      inv.invoice_number.trim() === normalized &&
+      (excludeId == null || inv.id !== excludeId)
+  );
+}

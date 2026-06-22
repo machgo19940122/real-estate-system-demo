@@ -645,7 +645,7 @@ export function InvoiceEditClient({
                     className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                   />
                   <p className="text-[11px] text-gray-500 mt-1">
-                    請求日から3週間後を自動入力します。変更した場合はその値を保持します。
+                    請求日から2週間後を自動入力します。変更した場合はその値を保持します。
                   </p>
                 </>
               ) : (

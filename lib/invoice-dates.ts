@@ -31,7 +31,7 @@ export function todayYmd(): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-/** 請求日（YYYY-MM-DD）から支払期限（+3週間＝21日） */
+/** 請求日（YYYY-MM-DD）から支払期限（+2週間＝14日） */
 export function dueDateFromInvoiceDate(invoiceDateYmd: string): string {
   const m = YMD_RE.exec(invoiceDateYmd.trim());
   if (!m) return invoiceDateYmd;
@@ -39,7 +39,7 @@ export function dueDateFromInvoiceDate(invoiceDateYmd: string): string {
   const mo = Number(m[2]) - 1;
   const day = Number(m[3]);
   const d = new Date(y, mo, day);
-  d.setDate(d.getDate() + 21);
+  d.setDate(d.getDate() + 14);
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }

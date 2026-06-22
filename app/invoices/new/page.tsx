@@ -12,12 +12,10 @@ import {
   estimates,
   staff,
   invoices,
-  getStaffById,
-  getPropertyById,
 } from "@/src/data/mock";
-import { nextInvoiceNumber } from "@/lib/invoice-number";
+import { nextInvoiceNumber, isInvoiceNumberTaken } from "@/lib/invoice-number";
 import { useSystemSettings } from "@/lib/use-system-settings";
-import { formatTaxRateLabel } from "@/lib/system-settings";
+import { formatTaxRateLabel, getEffectiveInvoicePeriod } from "@/lib/system-settings";
 import { EditableFooterTotalsView } from "@/components/editable-footer-totals";
 import { formatCurrency } from "@/lib/utils";
 import {
@@ -36,6 +34,7 @@ import { InvoicePropertiesEditor } from "@/components/invoice-properties-editor"
 import { normalizeInvoicePropertyIds } from "@/lib/invoice-properties";
 import { dueDateFromInvoiceDate, todayYmd } from "@/lib/invoice-dates";
 import { EstimateSelect } from "@/components/estimate-select";
+import { DocumentNumberField } from "@/components/document-number-field";
 
 function NewInvoiceForm() {
   const searchParams = useSearchParams();
@@ -60,6 +59,7 @@ function NewInvoiceForm() {
     return "";
   });
   const [revenueCategory, setRevenueCategory] = useState(presetRevenueCategory);
+  const [manualStatus, setManualStatus] = useState<"有" | "無し">("無し");
   const [note, setNote] = useState(presetNote);
   const [subject, setSubject] = useState("");
   const [items, setItems] = useState<EstimateLineItemForm[]>([]);
@@ -68,10 +68,24 @@ function NewInvoiceForm() {
   const [invoiceDate, setInvoiceDate] = useState(todayYmd);
   const [printInvoiceDate, setPrintInvoiceDate] = useState("");
   const [dueDate, setDueDate] = useState(() => dueDateFromInvoiceDate(todayYmd()));
+  const [invoiceNumber, setInvoiceNumber] = useState(() =>
+    nextInvoiceNumber(invoices, getEffectiveInvoicePeriod(todayYmd()))
+  );
+  const [invoiceNumberManual, setInvoiceNumberManual] = useState(false);
   const dueDateManualRef = useRef(false);
+
+  const handleInvoiceNumberChange = (value: string) => {
+    setInvoiceNumberManual(true);
+    setInvoiceNumber(value);
+  };
 
   const handleInvoiceDateChange = (next: string) => {
     setInvoiceDate(next);
+    if (!invoiceNumberManual) {
+      setInvoiceNumber(
+        nextInvoiceNumber(invoices, getEffectiveInvoicePeriod(next || todayYmd()))
+      );
+    }
     if (!dueDateManualRef.current && next) {
       setDueDate(dueDateFromInvoiceDate(next));
     }
@@ -153,45 +167,42 @@ function NewInvoiceForm() {
       alert("顧客を選択してください");
       return;
     }
+    if (!revenueCategory) {
+      alert("区分を選択してください");
+      return;
+    }
+    const number = invoiceNumber.trim();
+    if (!number) {
+      alert("請求番号を入力してください");
+      return;
+    }
+    if (isInvoiceNumberTaken(invoices, number)) {
+      alert("この請求番号は既に使用されています");
+      return;
+    }
+    const linked = estimateIdStr
+      ? estimates.find((e) => e.id === Number(estimateIdStr))
+      : undefined;
     const costLine =
       costIncludingTaxStr.trim() !== ""
         ? `\n原価金額（税込）: ${costIncludingTaxStr.trim()}\n利益率: ${formatProfitMarginRate(newFormProfitMargin)}`
         : "";
-    const staffLine =
-      staffId !== ""
-        ? `\n担当者: ${getStaffById(Number(staffId))?.name ?? staffId}`
-        : "\n担当者: （未選択）";
-    const linked = estimateIdStr
-      ? estimates.find((e) => e.id === Number(estimateIdStr))
-      : undefined;
-    const estimateLine = linked
-      ? `\n関連見積: ${linked.estimate_number}`
-      : "";
-    const propertyLine =
-      propertyIds.length > 0
-        ? `\n物件: ${propertyIds
-            .map((id) => getPropertyById(id)?.name ?? String(id))
-            .join("、")}`
-        : "";
     alert(
       "新規請求登録機能（ダミー）\n請求番号: " +
-        nextInvoiceNumber(invoices) +
+        number +
         "\n請求日: " +
         (invoiceDate || "-") +
-        (printInvoiceDate.trim()
-          ? "\n印刷請求日: " + printInvoiceDate.trim()
-          : "") +
+        (printInvoiceDate.trim() ? "\n印刷請求日: " + printInvoiceDate.trim() : "") +
         "\n支払期限: " +
         (dueDate || "-") +
         "\n件名: " +
         (subject.trim() || "-") +
         "\n備考: " +
         (note.trim() || "-") +
-        staffLine +
-        estimateLine +
-        propertyLine +
-        "\n請求明細行数: " +
-        items.length +
+        (linked ? "\n関連見積: " + linked.estimate_number : "") +
+        "\n請求合計: " +
+        total.toLocaleString() +
+        "円" +
         costLine
     );
   };
@@ -220,6 +231,14 @@ function NewInvoiceForm() {
           </CardHeader>
           <CardContent className="pt-6">
             <form onSubmit={handleSubmit} className="space-y-6">
+              <DocumentNumberField
+                id="invoice_number"
+                label="請求番号"
+                value={invoiceNumber}
+                onChange={handleInvoiceNumberChange}
+                placeholder="580011"
+              />
+
               <div className="grid gap-6 md:grid-cols-4">
                 <div className="space-y-2 md:col-span-1">
                   <label htmlFor="customer" className="text-sm font-medium text-gray-700">
@@ -236,8 +255,9 @@ function NewInvoiceForm() {
                     id="status"
                     name="status"
                     required
+                    value={manualStatus}
+                    onChange={(e) => setManualStatus(e.target.value as "有" | "無し")}
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white"
-                    defaultValue="無し"
                   >
                     <option value="有">黄色有</option>
                     <option value="無し">黄色無し</option>
@@ -331,7 +351,7 @@ function NewInvoiceForm() {
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white"
                   />
                   <p className="text-[11px] text-gray-500">
-                    請求日から3週間後を自動入力します。変更した場合はその値を保持します。
+                    請求日から2週間後を自動入力します。変更した場合はその値を保持します。
                   </p>
                 </div>
 

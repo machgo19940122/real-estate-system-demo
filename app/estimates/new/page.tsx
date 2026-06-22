@@ -4,13 +4,24 @@ import { useState, Suspense, useEffect, useCallback } from "react";
 import { AppLayout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { customers, properties, staff, getEstimateById } from "@/src/data/mock";
+import {
+  customers,
+  properties,
+  staff,
+  estimates,
+  getEstimateById,
+} from "@/src/data/mock";
 import { buildDraftFromEstimate, type EstimateNewFormDraft } from "@/lib/estimate-prefill";
 import { EstimateLineItemsEditor } from "@/components/estimate-line-items-editor";
 import { EstimateQuoteModal } from "@/components/estimate-quote-modal";
 import { EditableFooterTotalsView } from "@/components/editable-footer-totals";
 import { createGeneralLineItem } from "@/lib/estimate-units";
 import { useEditableFooterTotals } from "@/lib/use-editable-footer-totals";
+import {
+  isEstimateNumberTaken,
+  nextEstimateNumber,
+} from "@/lib/estimate-number";
+import { DocumentNumberField } from "@/components/document-number-field";
 import { ArrowLeft, Quote } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -31,6 +42,7 @@ function NewEstimateForm() {
   const [subject, setSubject] = useState("");
   const [note, setNote] = useState("");
   const [items, setItems] = useState([createGeneralLineItem(1)]);
+  const [estimateNumber, setEstimateNumber] = useState(() => nextEstimateNumber(estimates));
   const [quoteModalOpen, setQuoteModalOpen] = useState(false);
 
   const applyDraft = useCallback((draft: EstimateNewFormDraft) => {
@@ -52,21 +64,40 @@ function NewEstimateForm() {
     applyDraft(buildDraftFromEstimate(src));
   }, [fromEstimateIdParam, applyDraft]);
 
+  const footerTotals = useEditableFooterTotals(items);
+  const { total } = footerTotals;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!customerId) {
       alert("顧客を選択してください");
       return;
     }
+    if (!revenueCategory) {
+      alert("区分を選択してください");
+      return;
+    }
+    const number = estimateNumber.trim();
+    if (!number) {
+      alert("見積番号を入力してください");
+      return;
+    }
+    if (isEstimateNumberTaken(estimates, number)) {
+      alert("この見積番号は既に使用されています");
+      return;
+    }
     alert(
-      "新規見積登録機能（ダミー）\n件名: " +
+      "新規見積登録機能（ダミー）\n見積番号: " +
+        number +
+        "\n件名: " +
         (subject.trim() || "-") +
         "\n備考: " +
-        (note.trim() || "-")
+        (note.trim() || "-") +
+        "\n見積合計: " +
+        total.toLocaleString() +
+        "円"
     );
   };
-
-  const footerTotals = useEditableFooterTotals(items);
 
   return (
     <AppLayout>
@@ -98,6 +129,14 @@ function NewEstimateForm() {
           </CardHeader>
           <CardContent className="pt-6">
             <form onSubmit={handleSubmit} className="space-y-6">
+              <DocumentNumberField
+                id="estimate_number"
+                label="見積番号"
+                value={estimateNumber}
+                onChange={setEstimateNumber}
+                placeholder="EST-013"
+              />
+
               <div className="grid gap-6 md:grid-cols-4">
                 {/* 顧客 */}
                 <div className="space-y-2 md:col-span-1">

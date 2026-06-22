@@ -603,6 +603,8 @@ import {
   persistedLineToForm,
 } from "@/lib/document-line-items";
 import { getInvoiceDate } from "@/lib/invoice-dates";
+import { isEstimateNumberTaken } from "@/lib/estimate-number";
+import { isInvoiceNumberTaken } from "@/lib/invoice-number";
 import { calcTaxAmount } from "@/lib/system-settings";
 
 const est010DemoTotals = getEst010DemoTotals();
@@ -1015,6 +1017,114 @@ export function updateInvoice(
   }
   invoices[idx] = next;
   return next;
+}
+
+function nextRecordId<T extends { id: number }>(records: T[]): number {
+  return records.reduce((max, r) => Math.max(max, r.id), 0) + 1;
+}
+
+function resolveProjectId(
+  customerId?: number,
+  propertyId?: number
+): number | undefined {
+  if (customerId == null) return undefined;
+  const match = projects.find(
+    (p) =>
+      p.customer_id === customerId &&
+      (propertyId == null || propertyId <= 0 || p.property_id === propertyId)
+  );
+  return match?.id;
+}
+
+export function createEstimate(
+  input: Omit<Estimate, "id" | "subtotal" | "tax" | "total"> & {
+    subtotal?: number;
+    tax?: number;
+    total?: number;
+  }
+): Estimate {
+  if (isEstimateNumberTaken(estimates, input.estimate_number)) {
+    throw new Error(`Estimate number already exists: ${input.estimate_number}`);
+  }
+  const created_at = input.created_at?.trim() || new Date().toISOString().slice(0, 10);
+  const customer_id =
+    input.customer_id ??
+    (input.project_id != null
+      ? projects.find((p) => p.id === input.project_id)?.customer_id
+      : undefined);
+  const property_id =
+    input.property_id ??
+    (input.project_id != null
+      ? projects.find((p) => p.id === input.project_id)?.property_id
+      : undefined);
+  const project_id =
+    input.project_id ?? resolveProjectId(customer_id, property_id);
+  const items = normalizeEstimateItems(input.items) ?? [];
+  const subtotal =
+    input.subtotal ??
+    calcEstimateTaxableSubtotal(items.map((it) => persistedLineToForm(it)));
+  const tax = input.tax ?? calcTaxAmount(subtotal, created_at);
+  const total = input.total ?? subtotal + tax;
+  const estimate: Estimate = {
+    ...input,
+    id: nextRecordId(estimates),
+    project_id,
+    customer_id,
+    property_id,
+    created_at,
+    items,
+    subtotal,
+    tax,
+    total,
+  };
+  estimates.push(estimate);
+  return estimate;
+}
+
+export function createInvoice(
+  input: Omit<Invoice, "id"> & { amount?: number }
+): Invoice {
+  if (isInvoiceNumberTaken(invoices, input.invoice_number)) {
+    throw new Error(`Invoice number already exists: ${input.invoice_number}`);
+  }
+  const created_at = input.created_at?.trim() || input.invoice_date?.trim() || new Date().toISOString().slice(0, 10);
+  const customer_id =
+    input.customer_id ??
+    (input.project_id != null
+      ? projects.find((p) => p.id === input.project_id)?.customer_id
+      : undefined);
+  const property_ids = input.property_ids?.length
+    ? input.property_ids
+    : input.property_id != null
+      ? [input.property_id]
+      : undefined;
+  const project_id =
+    input.project_id ??
+    resolveProjectId(
+      customer_id,
+      property_ids?.[0] ?? input.property_id
+    );
+  const items = normalizeInvoiceItems(input.items) ?? [];
+  let amount = input.amount;
+  if (amount == null && items.length > 0) {
+    const subtotal = calcEstimateTaxableSubtotal(
+      items.map((it) => persistedLineToForm(it))
+    );
+    const tax = calcTaxAmount(subtotal, input.invoice_date ?? created_at);
+    amount = subtotal + tax;
+  }
+  const invoice: Invoice = {
+    ...input,
+    id: nextRecordId(invoices),
+    project_id,
+    customer_id,
+    property_ids,
+    created_at,
+    items,
+    amount: amount ?? 0,
+  };
+  invoices.push(invoice);
+  return invoice;
 }
 
 // 案件タイプから売上区分へのマッピング
